@@ -60344,6 +60344,67 @@ function generateRandomToken() {
 
 async function handleSharing(link) {
   try {
+    // Detect iOS device
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+    console.log('Device detection - iOS:', isIOS);
+    
+    // Special handling for iOS devices
+    if (isIOS) {
+      console.log('Using iOS-specific sharing approach');
+      
+      // Try Web Share API first (supported in iOS 12.2+)
+      if (navigator.share && window.isSecureContext) {
+        try {
+          await navigator.share({
+            title: 'Send Digital Rakhi',
+            text: 'Check out this digital Rakhi I sent you!',
+            url: link
+          });
+          console.log('iOS Web Share API successful');
+          window.location.href = 'thank-you.html';
+          return;
+        } catch (shareError) {
+          console.error('iOS Share API error:', shareError);
+          // Continue to fallback if sharing fails or is cancelled
+        }
+      }
+      
+      // iOS fallback - show a modal with the link and instructions
+      const shouldCopy = confirm(
+        'To share this Rakhi:\n\n' +
+        '1. Tap "OK" to copy the link\n' +
+        '2. The link will be copied to your clipboard\n' +
+        '3. Share it via your preferred app\n\n' +
+        link
+      );
+      
+      if (shouldCopy) {
+        // Try to copy to clipboard
+        try {
+          // Create a temporary input element
+          const tempInput = document.createElement('input');
+          tempInput.value = link;
+          document.body.appendChild(tempInput);
+          tempInput.select();
+          tempInput.setSelectionRange(0, 99999); // For mobile devices
+          
+          // Execute copy command
+          document.execCommand('copy');
+          document.body.removeChild(tempInput);
+          
+          alert('Link copied! You can now paste it in any app to share.');
+        } catch (err) {
+          console.error('iOS clipboard fallback error:', err);
+          alert('Please manually copy this link: ' + link);
+        }
+      }
+      
+      // Redirect to thank you page
+      window.location.href = 'thank-you.html';
+      return;
+    }
+    
+    // Non-iOS devices continue with regular flow
     // Check if Web Share API is available AND if we're in a secure context
     if (navigator.share && window.isSecureContext) {
       try {
