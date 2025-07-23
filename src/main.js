@@ -304,68 +304,30 @@ function generateRandomToken() {
 
 async function handleSharing(link) {
   try {
-    // Detect iOS device
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-    console.log('Device detection - iOS:', isIOS);
+    console.log('Sharing link:', link);
     
-    // Special handling for iOS devices
-    if (isIOS) {
-      console.log('Using iOS-specific sharing approach');
-      
-      // Try Web Share API first (supported in iOS 12.2+)
-      if (navigator.share && window.isSecureContext) {
-        try {
-          await navigator.share({
-            title: 'Send Digital Rakhi',
-            text: 'Check out this digital Rakhi I sent you!',
-            url: link
-          });
-          console.log('iOS Web Share API successful');
-          window.location.href = 'thank-you.html';
-          return;
-        } catch (shareError) {
-          console.error('iOS Share API error:', shareError);
-          // Continue to fallback if sharing fails or is cancelled
-        }
+    // First, try to copy to clipboard silently (without alerts)
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(link);
+        console.log('Link copied to clipboard silently');
+      } else {
+        // Fallback clipboard method for iOS and other browsers
+        const tempInput = document.createElement('input');
+        tempInput.value = link;
+        document.body.appendChild(tempInput);
+        tempInput.select();
+        tempInput.setSelectionRange(0, 99999); // For mobile devices
+        document.execCommand('copy');
+        document.body.removeChild(tempInput);
+        console.log('Link copied using execCommand fallback');
       }
-      
-      // iOS fallback - show a modal with the link and instructions
-      const shouldCopy = confirm(
-        'To share this Rakhi:\n\n' +
-        '1. Tap "OK" to copy the link\n' +
-        '2. The link will be copied to your clipboard\n' +
-        '3. Share it via your preferred app\n\n' +
-        link
-      );
-      
-      if (shouldCopy) {
-        // Try to copy to clipboard
-        try {
-          // Create a temporary input element
-          const tempInput = document.createElement('input');
-          tempInput.value = link;
-          document.body.appendChild(tempInput);
-          tempInput.select();
-          tempInput.setSelectionRange(0, 99999); // For mobile devices
-          
-          // Execute copy command
-          document.execCommand('copy');
-          document.body.removeChild(tempInput);
-          
-          alert('Link copied! You can now paste it in any app to share.');
-        } catch (err) {
-          console.error('iOS clipboard fallback error:', err);
-          alert('Please manually copy this link: ' + link);
-        }
-      }
-      
-      // Redirect to thank you page
-      window.location.href = 'thank-you.html';
-      return;
+    } catch (clipboardErr) {
+      console.warn('Could not copy to clipboard:', clipboardErr);
+      // Continue even if clipboard copy fails
     }
     
-    // Non-iOS devices continue with regular flow
-    // Check if Web Share API is available AND if we're in a secure context
+    // Then try to use the Web Share API (most seamless experience)
     if (navigator.share && window.isSecureContext) {
       try {
         await navigator.share({
@@ -373,53 +335,26 @@ async function handleSharing(link) {
           text: 'Check out this digital Rakhi I sent you!',
           url: link
         });
-        console.log('Thanks for sharing!');
-        // If sharing was successful, redirect to thank you page
+        console.log('Link shared successfully via Web Share API');
         window.location.href = 'thank-you.html';
         return;
       } catch (shareError) {
-        console.error('Share API error:', shareError);
-        // If user cancelled sharing, we'll fall back to clipboard
+        console.warn('Web Share API error:', shareError);
+        // If user cancelled sharing, don't show an error
         if (shareError.name !== 'AbortError') {
-          // Only show alert for errors other than user cancellation
-          alert('Sharing failed. We\'ll try copying to clipboard instead.');
+          // Only handle non-cancellation errors
+          console.error('Sharing failed:', shareError);
         }
       }
     }
     
-    // Fallback to clipboard API
-    if (navigator.clipboard && window.isSecureContext) {
-      try {
-        await navigator.clipboard.writeText(link);
-        alert('Link copied to clipboard! Please share manually.');
-        console.log('Link copied to clipboard!');
-        // If clipboard copy was successful, redirect to thank you page
-        window.location.href = 'thank-you.html';
-        return;
-      } catch (clipboardError) {
-        console.error('Clipboard API error:', clipboardError);
-      }
-    }
-    
-    // Final fallback - show manual copy dialog
-    const confirmed = confirm(
-      'Please copy this link manually to share:\n\n' + link + 
-      '\n\nClick OK after copying to continue.'
-    );
-    
-    // Regardless of whether they clicked OK or Cancel, we'll redirect
+    // If we reach here, either sharing was cancelled or not available
+    // The link is already copied to clipboard, so just redirect
     window.location.href = 'thank-you.html';
     
   } catch (err) {
     console.error('Error in sharing flow:', err);
-    
-    // Final fallback - show manual copy dialog
-    const confirmed = confirm(
-      'Please copy this link manually to share:\n\n' + link + 
-      '\n\nClick OK after copying to continue.'
-    );
-    
-    // Redirect to the thank you page
+    // Just redirect without showing error to user
     window.location.href = 'thank-you.html';
   }
 }
