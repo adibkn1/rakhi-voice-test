@@ -60172,11 +60172,21 @@ function setupForm() {
         });
         console.log('Data saved to Firebase with audio URL:', audioURL);
 
+        // Generate the unique link
         const uniqueLink = `${window.location.origin}${window.location.pathname}?token=${token}`;
+        console.log('Generated unique link:', uniqueLink);
+        
+        // Disable the form to prevent multiple submissions
+        const submitButton = form.querySelector('button[type="submit"]');
+        if (submitButton) {
+          submitButton.disabled = true;
+          submitButton.textContent = 'Processing...';
+        }
+        
+        // Handle sharing the link
         await handleSharing(uniqueLink);
-
-        // Redirect to the thank you page after sharing
-        window.location.href = 'thank-you.html';
+        
+        // Note: The handleSharing function now handles the redirect
       } catch (error) {
         console.error('Error saving data or generating link:', error);
         alert('Failed to process your request. Please try again.');
@@ -60199,21 +60209,6 @@ function showReceiverSide(token) {
 
   // Always show play icon and message
   if (playVoiceWrapper) playVoiceWrapper.style.display = 'flex';
-
-  // Play local audio if available
-  // if (playVoiceBtn) {
-  //   playVoiceBtn.onclick = () => {
-  //     // Try to fetch the last audio blob from localStorage
-  //     const audioDataUrl = localStorage.getItem('lastAudioBlob');
-  //     if (audioDataUrl) {
-  //       if (audio) { audio.pause(); audio.currentTime = 0; }
-  //       audio = new Audio(audioDataUrl);
-  //       audio.play();
-  //     } else {
-  //       alert('No local recording found.');
-  //     }
-  //   };
-  // }
 
   const rakhiRef = ref(database, 'rakhis');
   onValue(rakhiRef, (snapshot) => {
@@ -60241,6 +60236,12 @@ function showReceiverSide(token) {
           if (!rakhiData.audioURL) {
             console.error('No audio URL found in the data');
             playVoiceMsg.textContent = 'No voice message available';
+            
+            // If no audio, allow tapping anywhere to start the experience
+            receiverContainer.addEventListener('click', (e) => {
+              handleTap(receiverContainer, cameraContainer, rakhiData);
+            });
+            
             return;
           }
           
@@ -60250,23 +60251,56 @@ function showReceiverSide(token) {
           audio.addEventListener('error', (e) => {
             console.error('Audio error:', e);
             playVoiceMsg.textContent = 'Error loading audio';
+            
+            // If audio fails, allow tapping anywhere to start the experience
+            receiverContainer.addEventListener('click', (e) => {
+              handleTap(receiverContainer, cameraContainer, rakhiData);
+            });
           });
           
           audio.addEventListener('canplaythrough', () => {
             console.log('Audio loaded successfully and can be played');
           });
           
-          playVoiceBtn.onclick = () => {
+          // Add event listener for when audio playback ends
+          audio.addEventListener('ended', () => {
+            console.log('Audio playback completed, launching AR experience');
+            // Show a message that experience is loading
+            playVoiceMsg.textContent = 'Loading experience...';
+            // Short delay before launching camera experience
+            setTimeout(() => {
+              handleTap(receiverContainer, cameraContainer, rakhiData);
+            }, 500);
+          });
+          
+          // Make the play button only play audio, stopping event propagation
+          playVoiceBtn.onclick = (e) => {
+            e.stopPropagation(); // Prevent the click from bubbling up to the container
             console.log('Play button clicked, attempting to play audio');
+            
+            // Disable the container click event while audio is playing
+            receiverContainer.style.pointerEvents = 'none';
+            
+            // Change the message to indicate audio is playing
+            playVoiceMsg.textContent = 'Playing message...';
+            
             audio.currentTime = 0;
             audio.play().catch(err => {
               console.error('Error playing audio:', err);
               alert('Could not play the audio. Please try again.');
+              playVoiceMsg.textContent = 'Play your message';
+              receiverContainer.style.pointerEvents = 'auto';
             });
           };
+          
+          // Remove the click event from the container since we're auto-launching after audio
+          // No need for the user to tap anywhere else
+        } else {
+          // If no audio UI elements, allow tapping anywhere to start the experience
+          receiverContainer.addEventListener('click', (e) => {
+            handleTap(receiverContainer, cameraContainer, rakhiData);
+          });
         }
-
-        receiverContainer.addEventListener('click', () => handleTap(receiverContainer, cameraContainer, rakhiData));
       } else {
         document.getElementById('greeting').innerText = 'No Rakhi information found.';
         document.getElementById('greeting-overlay').innerText = 'No Rakhi information found.';
@@ -60310,25 +60344,62 @@ function generateRandomToken() {
 
 async function handleSharing(link) {
   try {
-    if (navigator.share) {
-      await navigator.share({
-        title: 'Send Digital Rakhi',
-        text: 'Check out this digital Rakhi I sent you!',
-        url: link
-      });
-      console.log('Thanks for sharing!');
-    } else {
-      // Fallback for browsers that do not support the share API
-      await navigator.clipboard.writeText(link);
-      alert('Link copied to clipboard! Please share manually.');
-      console.log('Link copied to clipboard!');
+    // Check if Web Share API is available AND if we're in a secure context
+    if (navigator.share && window.isSecureContext) {
+      try {
+        await navigator.share({
+          title: 'Send Digital Rakhi',
+          text: 'Check out this digital Rakhi I sent you!',
+          url: link
+        });
+        console.log('Thanks for sharing!');
+        // If sharing was successful, redirect to thank you page
+        window.location.href = 'thank-you.html';
+        return;
+      } catch (shareError) {
+        console.error('Share API error:', shareError);
+        // If user cancelled sharing, we'll fall back to clipboard
+        if (shareError.name !== 'AbortError') {
+          // Only show alert for errors other than user cancellation
+          alert('Sharing failed. We\'ll try copying to clipboard instead.');
+        }
+      }
     }
+    
+    // Fallback to clipboard API
+    if (navigator.clipboard && window.isSecureContext) {
+      try {
+        await navigator.clipboard.writeText(link);
+        alert('Link copied to clipboard! Please share manually.');
+        console.log('Link copied to clipboard!');
+        // If clipboard copy was successful, redirect to thank you page
+        window.location.href = 'thank-you.html';
+        return;
+      } catch (clipboardError) {
+        console.error('Clipboard API error:', clipboardError);
+      }
+    }
+    
+    // Final fallback - show manual copy dialog
+    const confirmed = confirm(
+      'Please copy this link manually to share:\n\n' + link + 
+      '\n\nClick OK after copying to continue.'
+    );
+    
+    // Regardless of whether they clicked OK or Cancel, we'll redirect
+    window.location.href = 'thank-you.html';
+    
   } catch (err) {
-    console.error('Error sharing or copying link:', err);
-    alert('Failed to share or copy link. Please try manually.');
-  } finally {
-    // Redirect to the thank you page regardless of the share outcome
-    window.location.href = `thank-you.html`;
+    console.error('Error in sharing flow:', err);
+    
+    // Final fallback - show manual copy dialog
+    const confirmed = confirm(
+      'Please copy this link manually to share:\n\n' + link + 
+      '\n\nClick OK after copying to continue.'
+    );
+    
+    // Redirect to the thank you page
+    window.location.href = 'thank-you.html';
   }
 }
 
