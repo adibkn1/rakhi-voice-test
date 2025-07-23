@@ -95,7 +95,7 @@ function setupForm() {
       const sisterName = document.getElementById('sisterName').value.trim();
       const brotherName = document.getElementById('brotherName').value.trim();
       const termsAccepted = document.getElementById('terms').checked;
-console.log('loggin', sisterName, brotherName, termsAccepted)
+      console.log('loggin', sisterName, brotherName, termsAccepted)
       if (!sisterName || !brotherName || !termsAccepted) {
         alert('Please fill out all fields and accept the terms.');
         return;
@@ -105,11 +105,21 @@ console.log('loggin', sisterName, brotherName, termsAccepted)
       let audioURL = null;
 
       try {
+        // Use the recorded audio blob if available
+        if (recordedAudioBlob && recordedAudioBlob.size > 0) {
+          console.log('Using recorded audio blob for upload', recordedAudioBlob);
+          lastAudioBlob = recordedAudioBlob;
+        }
+        
         // If there is a recording, upload it to Firebase Storage
         if (lastAudioBlob && lastAudioBlob.size > 0) {
+          console.log('Uploading audio blob to Firebase', lastAudioBlob);
           const audioStorageRef = storageRef(storage, `recordings/${token}.webm`);
           await uploadBytes(audioStorageRef, lastAudioBlob);
           audioURL = await getDownloadURL(audioStorageRef);
+          console.log('Audio uploaded successfully, URL:', audioURL);
+        } else {
+          console.warn('No audio blob available for upload');
         }
 
         const newPostRef = push(ref(database, 'rakhis'));
@@ -120,9 +130,10 @@ console.log('loggin', sisterName, brotherName, termsAccepted)
           audioURL: audioURL || null,
           createdAt: new Date().toISOString()
         });
+        console.log('Data saved to Firebase with audio URL:', audioURL);
 
         const uniqueLink = `${window.location.origin}${window.location.pathname}?token=${token}`;
-          await handleSharing(uniqueLink);
+        await handleSharing(uniqueLink);
 
         // Redirect to the thank you page after sharing
         window.location.href = 'thank-you.html';
@@ -184,10 +195,34 @@ function showReceiverSide(token) {
         // Always show play icon and message
         if (playVoiceMsg && playVoiceBtn) {
           playVoiceMsg.style.display = 'block';
+          console.log('Audio URL from Firebase:', rakhiData.audioURL);
+          
+          // Check if audioURL exists and is valid
+          if (!rakhiData.audioURL) {
+            console.error('No audio URL found in the data');
+            playVoiceMsg.textContent = 'No voice message available';
+            return;
+          }
+          
           audio = new Audio(rakhiData.audioURL);
+          
+          // Add event listeners to debug audio loading
+          audio.addEventListener('error', (e) => {
+            console.error('Audio error:', e);
+            playVoiceMsg.textContent = 'Error loading audio';
+          });
+          
+          audio.addEventListener('canplaythrough', () => {
+            console.log('Audio loaded successfully and can be played');
+          });
+          
           playVoiceBtn.onclick = () => {
+            console.log('Play button clicked, attempting to play audio');
             audio.currentTime = 0;
-            audio.play();
+            audio.play().catch(err => {
+              console.error('Error playing audio:', err);
+              alert('Could not play the audio. Please try again.');
+            });
           };
         }
 
@@ -404,6 +439,7 @@ let recordTimerInterval = null;
 let recordedAudioBlob = null;
 let recordedAudioUrl = null;
 let audioPlayer = null;
+let isRecording = false;
 
 function resetVoiceRecorderUI() {
   holdRecordBtn.style.display = 'flex';
@@ -414,6 +450,7 @@ function resetVoiceRecorderUI() {
   recordTimer.textContent = '0:00';
   recordedAudioBlob = null;
   recordedAudioUrl = null;
+  isRecording = false;
   if (audioPlayer) {
     audioPlayer.pause();
     audioPlayer = null;
@@ -422,7 +459,7 @@ function resetVoiceRecorderUI() {
 
 function updateRecordTimerAndProgress() {
   const elapsed = (Date.now() - recordStartTime) / 1000;
-  const maxDuration = 20;
+  const maxDuration = 5;
   recordTimer.textContent = `0:${elapsed < 10 ? '0' : ''}${Math.floor(elapsed)}`;
   recordProgress.style.width = `${Math.min(100, (elapsed / maxDuration) * 100)}%`;
   if (elapsed >= maxDuration) {
@@ -448,23 +485,43 @@ function startVoiceRecording() {
   }
   navigator.mediaDevices.getUserMedia({ audio: true })
     .then(stream => {
-      mediaRecorder = new MediaRecorder(stream);
+      // Try to use a more widely supported audio format
+      const options = { 
+        mimeType: 'audio/webm;codecs=opus'
+      };
+      
+      try {
+        mediaRecorder = new MediaRecorder(stream, options);
+      } catch (e) {
+        console.warn('MediaRecorder with options failed, trying without options', e);
+        mediaRecorder = new MediaRecorder(stream);
+      }
+      
+      // Request data every second instead of only on stop
       mediaRecorder.ondataavailable = (e) => {
         if (e.data.size > 0) audioChunks.push(e.data);
       };
+      
       mediaRecorder.onstop = () => {
-        recordedAudioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+        const mimeType = mediaRecorder.mimeType || 'audio/webm';
+        recordedAudioBlob = new Blob(audioChunks, { type: mimeType });
         recordedAudioUrl = URL.createObjectURL(recordedAudioBlob);
         console.log('Voice recording stopped, blob created:', recordedAudioBlob);
+        console.log('Audio MIME type:', mimeType);
         recordProgressBar.style.display = 'none';
         recordTimer.style.display = 'none';
         afterRecordBtns.style.display = 'flex';
+        isRecording = false;
       };
+      
       mediaRecorder.onerror = (err) => {
         console.error('MediaRecorder error:', err);
         resetVoiceRecorderUI();
       };
-      mediaRecorder.start();
+      
+      // Start recording and request data every second
+      mediaRecorder.start(1000);
+      isRecording = true;
       recordTimerInterval = setInterval(updateRecordTimerAndProgress, 100);
     })
     .catch(err => {
@@ -483,26 +540,11 @@ function stopVoiceRecording() {
 }
 
 if (holdRecordBtn) {
-  let isHolding = false;
-  holdRecordBtn.addEventListener('mousedown', () => {
-    isHolding = true;
-    startVoiceRecording();
-  });
-  holdRecordBtn.addEventListener('touchstart', (e) => {
-    isHolding = true;
-    startVoiceRecording();
-    e.preventDefault();
-  });
-  document.addEventListener('mouseup', () => {
-    if (isHolding) {
+  holdRecordBtn.addEventListener('click', () => {
+    if (!isRecording) {
+      startVoiceRecording();
+    } else {
       stopVoiceRecording();
-      isHolding = false;
-    }
-  });
-  document.addEventListener('touchend', () => {
-    if (isHolding) {
-      stopVoiceRecording();
-      isHolding = false;
     }
   });
 }
