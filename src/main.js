@@ -526,7 +526,7 @@ function resetVoiceRecorderUI() {
 
 function updateRecordTimerAndProgress() {
   const elapsed = (Date.now() - recordStartTime) / 1000;
-  const maxDuration = 5;
+  const maxDuration = 10;
   recordTimer.textContent = `0:${elapsed < 10 ? '0' : ''}${Math.floor(elapsed)}`;
   recordProgress.style.width = `${Math.min(100, (elapsed / maxDuration) * 100)}%`;
   if (elapsed >= maxDuration) {
