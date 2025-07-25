@@ -60077,6 +60077,90 @@ const database = getDatabase(app);
 const analytics = getAnalytics(app);
 const storage = getStorage(app);
 
+// Add viewport handling for mobile keyboard
+let originalViewportHeight = window.innerHeight;
+let isKeyboardOpen = false;
+
+function handleViewportChange() {
+  const currentHeight = window.innerHeight;
+  const heightDifference = originalViewportHeight - currentHeight;
+  
+  // If height decreased significantly, keyboard is likely open
+  if (heightDifference > 150) {
+    if (!isKeyboardOpen) {
+      console.log('Keyboard opened, viewport height changed from', originalViewportHeight, 'to', currentHeight);
+      isKeyboardOpen = true;
+    }
+  } else {
+    // If height returned to original or close to it, keyboard is closed
+    if (isKeyboardOpen) {
+      console.log('Keyboard closed, restoring original viewport height');
+      isKeyboardOpen = false;
+      
+      // Force viewport to return to original state
+      const viewport = document.querySelector('meta[name="viewport"]');
+      if (viewport) {
+        viewport.setAttribute('content', 'width=device-width, initial-scale=1.0, user-scalable=no');
+      }
+      
+      // Small delay to ensure viewport meta tag takes effect
+      setTimeout(() => {
+        window.scrollTo(0, 0);
+      }, 100);
+    }
+  }
+}
+
+// Listen for viewport changes
+window.addEventListener('resize', handleViewportChange);
+window.addEventListener('orientationchange', () => {
+  // Update original height on orientation change
+  setTimeout(() => {
+    originalViewportHeight = window.innerHeight;
+    console.log('Orientation changed, new original height:', originalViewportHeight);
+  }, 500);
+});
+
+// Initialize original height
+document.addEventListener('DOMContentLoaded', () => {
+  originalViewportHeight = window.innerHeight;
+  console.log('Initial viewport height:', originalViewportHeight);
+  
+  // Add input event handlers for better keyboard detection
+  const inputs = document.querySelectorAll('input[type="text"]');
+  inputs.forEach(input => {
+    input.addEventListener('focus', () => {
+      console.log('Input focused, keyboard likely opening');
+      // Allow natural viewport adjustment for keyboard
+    });
+    
+    input.addEventListener('blur', () => {
+      console.log('Input blurred, keyboard likely closing');
+      // Force restore original layout after a delay
+      setTimeout(() => {
+        if (isKeyboardOpen) {
+          console.log('Forcing viewport restoration after input blur');
+          isKeyboardOpen = false;
+          
+          // Force viewport to return to original state
+          const viewport = document.querySelector('meta[name="viewport"]');
+          if (viewport) {
+            viewport.setAttribute('content', 'width=device-width, initial-scale=1.0, user-scalable=no');
+          }
+          
+          // Scroll to top and force layout recalculation
+          window.scrollTo(0, 0);
+          
+          // Additional force refresh after a longer delay
+          setTimeout(() => {
+            window.scrollTo(0, 0);
+          }, 300);
+        }
+      }, 100);
+    });
+  });
+});
+
 document.addEventListener('DOMContentLoaded', function() {
 
   const maxMobileWidth = 500;
