@@ -148,6 +148,14 @@ function setupForm() {
         return;
       }
 
+      // Get submit button and change text to "Wait"
+      const submitButton = form.querySelector('button[type="submit"]');
+      if (submitButton) {
+        submitButton.textContent = 'Wait';
+        submitButton.disabled = true;
+        console.log('Button text changed to: Wait');
+      }
+
       const token = generateRandomToken();
       let audioURL = null;
 
@@ -183,12 +191,8 @@ function setupForm() {
         const uniqueLink = `${window.location.origin}${window.location.pathname}?token=${token}`;
         console.log('Generated unique link:', uniqueLink);
         
-        // Disable the form to prevent multiple submissions
-        const submitButton = form.querySelector('button[type="submit"]');
-        if (submitButton) {
-          submitButton.disabled = true;
-          submitButton.textContent = 'Processing...';
-        }
+        // Keep button text as "Wait" during sharing process
+        console.log('Button text before sharing:', submitButton ? submitButton.textContent : 'N/A');
         
         // Handle sharing the link
         await handleSharing(uniqueLink);
@@ -197,6 +201,12 @@ function setupForm() {
       } catch (error) {
         console.error('Error saving data or generating link:', error);
         alert('Failed to process your request. Please try again.');
+        
+        // Reset button on error
+        if (submitButton) {
+          submitButton.textContent = 'Send';
+          submitButton.disabled = false;
+        }
       }
     });
   }
@@ -470,15 +480,35 @@ async function handleSharing(link) {
       // Continue even if clipboard copy fails
     }
     
-    // Then try to use the Web Share API (most seamless experience)
+    // Try to fetch and convert the image to a blob for sharing
+    let imageBlob = null;
+    try {
+      const imageResponse = await fetch('docs/Images/thumb.jpg');
+      if (imageResponse.ok) {
+        imageBlob = await imageResponse.blob();
+        console.log('Image loaded successfully for sharing');
+      }
+    } catch (imageErr) {
+      console.warn('Could not load image for sharing:', imageErr);
+    }
+    
+    // Then try to use the Web Share API with image attachment
     if (navigator.share && window.isSecureContext) {
       try {
-        await navigator.share({
+        const shareData = {
           title: 'Send Digital Rakhi',
           text: 'Check out this digital Rakhi I sent you!',
           url: link
-        });
-        console.log('Link shared successfully via Web Share API');
+        };
+        
+        // Add files array if image is available and Web Share API supports files
+        if (imageBlob && navigator.canShare && navigator.canShare({ files: [imageBlob] })) {
+          shareData.files = [new File([imageBlob], 'digital-rakhi.jpg', { type: 'image/jpeg' })];
+          console.log('Including image in share data');
+        }
+        
+        await navigator.share(shareData);
+        console.log('Link and image shared successfully via Web Share API');
         window.location.href = 'thank-you.html';
         return;
       } catch (shareError) {
@@ -488,6 +518,22 @@ async function handleSharing(link) {
           // Only handle non-cancellation errors
           console.error('Sharing failed:', shareError);
         }
+      }
+    }
+    
+    // If Web Share API is not available or failed, try alternative sharing methods
+    if (imageBlob) {
+      try {
+        // For mobile devices, try to trigger native sharing with image
+        const shareUrl = `whatsapp://send?text=Check out this digital Rakhi I sent you! ${link}`;
+        window.open(shareUrl, '_blank');
+        console.log('Opened WhatsApp sharing as fallback');
+        setTimeout(() => {
+          window.location.href = 'thank-you.html';
+        }, 1000);
+        return;
+      } catch (fallbackErr) {
+        console.warn('Fallback sharing failed:', fallbackErr);
       }
     }
     

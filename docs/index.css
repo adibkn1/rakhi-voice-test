@@ -157,6 +157,13 @@ body, html {
   text-align: center;
 }
 
+/* Submit button styling */
+button[type="submit"].submit-button {
+  background-color: #6D3900 !important;
+  color: white !important;
+  font-family: Trajan !important;
+}
+
 .security-message {
   font-size: 1vh;
   text-align: center;
