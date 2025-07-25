@@ -253,10 +253,21 @@ function setupForm() {
         // If there is a recording, upload it to Firebase Storage
         if (lastAudioBlob && lastAudioBlob.size > 0) {
           console.log('Uploading audio blob to Firebase', lastAudioBlob);
+          
+          // Update button text to show upload in progress
+          if (submitButton) {
+            submitButton.textContent = 'Uploading...';
+          }
+          
           const audioStorageRef = storageRef(storage, `recordings/${token}.webm`);
           await uploadBytes(audioStorageRef, lastAudioBlob);
           audioURL = await getDownloadURL(audioStorageRef);
           console.log('Audio uploaded successfully, URL:', audioURL);
+          
+          // Update button text after upload completes
+          if (submitButton) {
+            submitButton.textContent = 'Generating Link...';
+          }
         } else {
           console.warn('No audio blob available for upload');
         }
@@ -275,10 +286,12 @@ function setupForm() {
         const uniqueLink = `${window.location.origin}${window.location.pathname}?token=${token}`;
         console.log('Generated unique link:', uniqueLink);
         
-        // Keep button text as "Wait" during sharing process
-        console.log('Button text before sharing:', submitButton ? submitButton.textContent : 'N/A');
+        // Update button text to show sharing is about to happen
+        if (submitButton) {
+          submitButton.textContent = 'Sharing...';
+        }
         
-        // Handle sharing the link
+        // Now that we have the unique link, handle sharing
         await handleSharing(uniqueLink);
         
         // Note: The handleSharing function now handles the redirect
@@ -543,196 +556,222 @@ async function handleSharing(link) {
   try {
     console.log('Sharing link:', link);
     
-    // Detect iOS Safari
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-    const isSafari = /Safari/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent);
-    const isIOSSafari = isIOS && isSafari;
+    // Show a message that the link is being prepared
+    showCopyFeedback('Preparing link...');
     
-    console.log('iOS Safari detected:', isIOSSafari);
+    // First, try to copy to clipboard using the most reliable methods
+    const clipboardSuccess = await copyToClipboard(link);
     
-    // iOS Safari specific handling
-    if (isIOSSafari) {
-      try {
-        // For iOS Safari, try Web Share API first (iOS 13+)
-        if (navigator.share) {
-          console.log('Attempting Web Share API on iOS Safari');
-          await navigator.share({
-            title: 'Send Digital Rakhi',
-            text: 'Check out this digital Rakhi I sent you!',
-            url: link
-          });
-          console.log('Web Share API successful on iOS Safari');
-          window.location.href = 'thank-you.html';
-          return;
-        }
-      } catch (shareError) {
-        console.warn('Web Share API failed on iOS Safari:', shareError);
-        // Continue to fallback methods
-      }
+    if (clipboardSuccess) {
+      // Show success message for clipboard copy
+      showCopyFeedback('Link copied to clipboard!');
       
-      // iOS Safari fallback: Create a temporary input and trigger copy
-      try {
-        console.log('Using iOS Safari clipboard fallback');
-        const tempInput = document.createElement('textarea');
-        tempInput.value = link;
-        tempInput.style.position = 'fixed';
-        tempInput.style.opacity = '0';
-        tempInput.style.pointerEvents = 'none';
-        document.body.appendChild(tempInput);
-        
-        // Select and copy
-        tempInput.select();
-        tempInput.setSelectionRange(0, 99999);
-        const copySuccess = document.execCommand('copy');
-        document.body.removeChild(tempInput);
-        
-        if (copySuccess) {
-          console.log('Link copied successfully on iOS Safari');
-          
-          // Show a brief message to user that link is copied
-          const copyMessage = document.createElement('div');
-          copyMessage.textContent = 'Link copied! Opening sharing options...';
-          copyMessage.style.cssText = `
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: rgba(0,0,0,0.8);
-            color: white;
-            padding: 15px 20px;
-            border-radius: 8px;
-            z-index: 10000;
-            font-size: 16px;
-            text-align: center;
-          `;
-          document.body.appendChild(copyMessage);
-          
-          // Remove message after 2 seconds
-          setTimeout(() => {
-            if (copyMessage.parentNode) {
-              copyMessage.parentNode.removeChild(copyMessage);
-            }
-          }, 2000);
-          
-          // Try to trigger native sharing by opening a share URL
-          setTimeout(() => {
-            try {
-              // Try multiple sharing options for iOS
-              const shareUrls = [
-                `sms:?body=Check out this digital Rakhi I sent you! ${link}`,
-                `mailto:?subject=Digital Rakhi&body=Check out this digital Rakhi I sent you! ${link}`,
-                `whatsapp://send?text=Check out this digital Rakhi I sent you! ${link}`
-              ];
-              
-              // Try to open the first available app
-              for (let i = 0; i < shareUrls.length; i++) {
-                try {
-                  window.open(shareUrls[i], '_blank');
-                  console.log('Opened sharing option:', shareUrls[i]);
-                  break;
-                } catch (e) {
-                  console.warn('Failed to open sharing option:', shareUrls[i], e);
-                }
-              }
-              
-              // Redirect after a delay
-              setTimeout(() => {
-                window.location.href = 'thank-you.html';
-              }, 1000);
-              
-            } catch (fallbackErr) {
-              console.warn('Fallback sharing failed:', fallbackErr);
-              window.location.href = 'thank-you.html';
-            }
-          }, 500);
-          
-          return;
-        }
-      } catch (clipboardErr) {
-        console.error('iOS Safari clipboard fallback failed:', clipboardErr);
+      // Short delay to ensure user sees the clipboard message
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+    
+    // Then try native sharing
+    const sharingSuccess = await attemptNativeSharing(link);
+    
+    // If sharing was successful, show a message
+    if (sharingSuccess) {
+      showCopyFeedback('Opening sharing options...');
+      
+      // Give the sharing dialog time to appear before redirecting
+      await new Promise(resolve => setTimeout(resolve, 1500));
+    } else {
+      // If sharing wasn't successful but clipboard was, show a longer message
+      if (clipboardSuccess) {
+        showCopyFeedback('Link copied! You can now paste and share it.');
+        await new Promise(resolve => setTimeout(resolve, 2000));
       }
     }
     
-    // Non-iOS Safari or fallback handling
-    // First, try to copy to clipboard silently
-    try {
-      if (navigator.clipboard && window.isSecureContext) {
-        await navigator.clipboard.writeText(link);
-        console.log('Link copied to clipboard silently');
-      } else {
-        // Fallback clipboard method for other browsers
-        const tempInput = document.createElement('input');
-        tempInput.value = link;
-        document.body.appendChild(tempInput);
-        tempInput.select();
-        tempInput.setSelectionRange(0, 99999);
-        document.execCommand('copy');
-        document.body.removeChild(tempInput);
-        console.log('Link copied using execCommand fallback');
-      }
-    } catch (clipboardErr) {
-      console.warn('Could not copy to clipboard:', clipboardErr);
-    }
-    
-    // Try to fetch and convert the image to a blob for sharing
-    let imageBlob = null;
-    try {
-      const imageResponse = await fetch('docs/Images/thumb.jpg');
-      if (imageResponse.ok) {
-        imageBlob = await imageResponse.blob();
-        console.log('Image loaded successfully for sharing');
-      }
-    } catch (imageErr) {
-      console.warn('Could not load image for sharing:', imageErr);
-    }
-    
-    // Then try to use the Web Share API with image attachment
-    if (navigator.share && window.isSecureContext) {
-      try {
-        const shareData = {
-          title: 'Send Digital Rakhi',
-          text: 'Check out this digital Rakhi I sent you!',
-          url: link
-        };
-        
-        // Add files array if image is available and Web Share API supports files
-        if (imageBlob && navigator.canShare && navigator.canShare({ files: [imageBlob] })) {
-          shareData.files = [new File([imageBlob], 'digital-rakhi.jpg', { type: 'image/jpeg' })];
-          console.log('Including image in share data');
-        }
-        
-        await navigator.share(shareData);
-        console.log('Link and image shared successfully via Web Share API');
-        window.location.href = 'thank-you.html';
-        return;
-      } catch (shareError) {
-        console.warn('Web Share API error:', shareError);
-        if (shareError.name !== 'AbortError') {
-          console.error('Sharing failed:', shareError);
-        }
-      }
-    }
-    
-    // Final fallback: try WhatsApp sharing
-    try {
-      const shareUrl = `whatsapp://send?text=Check out this digital Rakhi I sent you! ${link}`;
-      window.open(shareUrl, '_blank');
-      console.log('Opened WhatsApp sharing as fallback');
-      setTimeout(() => {
-        window.location.href = 'thank-you.html';
-      }, 1000);
-      return;
-    } catch (fallbackErr) {
-      console.warn('Fallback sharing failed:', fallbackErr);
-    }
-    
-    // If we reach here, just redirect
+    // Redirect to thank-you page
     window.location.href = 'thank-you.html';
-    
   } catch (err) {
     console.error('Error in sharing flow:', err);
+    
+    // Even if there's an error, show a message that the link was copied (if it was)
+    showCopyFeedback('Link saved! Redirecting...');
+    
+    // Short delay before redirect
+    await new Promise(resolve => setTimeout(resolve, 1500));
     window.location.href = 'thank-you.html';
   }
+}
+
+// Modern clipboard copy function with fallbacks
+async function copyToClipboard(text) {
+  try {
+    // Try the modern async Clipboard API first (most reliable on modern browsers)
+    if (navigator.clipboard && window.isSecureContext) {
+      console.log('Using modern clipboard API');
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+    
+    // iOS Safari specific fallback (most reliable on iOS)
+    if (/iPad|iPhone|iPod/.test(navigator.userAgent) && /Safari/.test(navigator.userAgent)) {
+      console.log('Using iOS Safari clipboard fallback');
+      const tempTextarea = document.createElement('textarea');
+      tempTextarea.value = text;
+      tempTextarea.style.position = 'fixed';
+      tempTextarea.style.opacity = '0';
+      tempTextarea.style.zIndex = '-1';
+      tempTextarea.style.pointerEvents = 'none';
+      tempTextarea.style.left = '-9999px'; // Position off-screen
+      tempTextarea.setAttribute('readonly', ''); // Prevent keyboard from appearing on mobile
+      
+      document.body.appendChild(tempTextarea);
+      
+      // Handle iOS Safari
+      const range = document.createRange();
+      range.selectNodeContents(tempTextarea);
+      
+      const selection = window.getSelection();
+      selection.removeAllRanges();
+      selection.addRange(range);
+      
+      tempTextarea.setSelectionRange(0, text.length);
+      
+      const successful = document.execCommand('copy');
+      document.body.removeChild(tempTextarea);
+      
+      if (successful) return true;
+    }
+    
+    // General fallback for other browsers
+    console.log('Using general clipboard fallback');
+    const tempInput = document.createElement('textarea');
+    tempInput.value = text;
+    document.body.appendChild(tempInput);
+    tempInput.select();
+    document.execCommand('copy');
+    document.body.removeChild(tempInput);
+    
+    return true;
+  } catch (err) {
+    console.warn('Clipboard copy failed:', err);
+    return false;
+  }
+}
+
+// Native sharing function with fallbacks
+async function attemptNativeSharing(link) {
+  try {
+    // Detect device/browser
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    const isAndroid = /Android/.test(navigator.userAgent);
+    const isMobile = isIOS || isAndroid;
+    
+    // Try Web Share API first (works on most mobile browsers)
+    if (navigator.share) {
+      console.log('Using Web Share API');
+      try {
+        await navigator.share({
+          title: 'Digital Rakhi - Send Your Love',
+          text: 'Check out this digital Rakhi I sent you! Celebrate the eternal bond of love.',
+          url: link
+        });
+        console.log('Web Share API successful');
+        return true;
+      } catch (shareError) {
+        // If user cancelled sharing, don't treat as error
+        if (shareError.name !== 'AbortError') {
+          console.warn('Web Share API error:', shareError);
+        }
+        // Continue to fallbacks
+      }
+    }
+    
+    // Mobile-specific fallbacks
+    if (isMobile) {
+      console.log('Using mobile-specific sharing fallbacks');
+      
+      // Try multiple sharing options for mobile
+      const shareUrls = [
+        // WhatsApp (works on both iOS and Android)
+        `whatsapp://send?text=${encodeURIComponent('Check out this digital Rakhi I sent you! ' + link)}`,
+        
+        // SMS (works on iOS and Android)
+        `sms:?body=${encodeURIComponent('Check out this digital Rakhi I sent you! ' + link)}`,
+        
+        // Email (universal fallback)
+        `mailto:?subject=${encodeURIComponent('Digital Rakhi')}&body=${encodeURIComponent('Check out this digital Rakhi I sent you! ' + link)}`
+      ];
+      
+      // Try each sharing option until one works
+      for (let i = 0; i < shareUrls.length; i++) {
+        try {
+          const shareWindow = window.open(shareUrls[i], '_blank');
+          if (shareWindow) {
+            console.log('Opened sharing option:', shareUrls[i]);
+            return true;
+          }
+        } catch (e) {
+          console.warn('Failed to open sharing option:', shareUrls[i], e);
+        }
+      }
+    }
+    
+    // If we get here, all sharing attempts failed, but we still have the clipboard copy
+    return false;
+  } catch (err) {
+    console.warn('Native sharing failed:', err);
+    return false;
+  }
+}
+
+// Show feedback to user that link was copied
+function showCopyFeedback(message) {
+  // Create feedback element
+  const feedback = document.createElement('div');
+  feedback.textContent = message;
+  feedback.style.cssText = `
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(0,0,0,0.8);
+    color: white;
+    padding: 15px 20px;
+    border-radius: 8px;
+    z-index: 10000;
+    font-size: 16px;
+    text-align: center;
+    animation: fadeIn 0.3s ease-out;
+  `;
+  
+  // Add animation styles
+  const style = document.createElement('style');
+  style.textContent = `
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    @keyframes fadeOut {
+      from { opacity: 1; }
+      to { opacity: 0; }
+    }
+  `;
+  document.head.appendChild(style);
+  
+  // Add to document
+  document.body.appendChild(feedback);
+  
+  // Remove after 2 seconds with fade out
+  setTimeout(() => {
+    feedback.style.animation = 'fadeOut 0.3s ease-in';
+    setTimeout(() => {
+      if (feedback.parentNode) {
+        feedback.parentNode.removeChild(feedback);
+      }
+      if (style.parentNode) {
+        style.parentNode.removeChild(style);
+      }
+    }, 300);
+  }, 2000);
 }
 
 async function startCameraKit(rakhiData) {
