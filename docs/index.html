@@ -30,9 +30,9 @@
       <div class="input-wrapper">
         <input id="brotherName" type="text" placeholder="Sibling's Name" required onblur="console.log('Brother name entered:', this.value)">
       </div>
-      <div class="input-wrapper" style="display: flex; flex-direction: column; align-items: center;">
-        <div id="voiceRecorderUI" style="display:flex;flex-direction:column;align-items:center;justify-content:center;width:100%;">
-          <button type="button" id="holdRecordBtn" style="background:none;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;width:64px;height:64px;border-radius:50%;box-shadow:0 2px 8px rgba(0,0,0,0.08);background:#fff;margin-bottom:16px;">
+      <div class="input-wrapper" style="display: none;">
+        <div id="voiceRecorderUI">
+          <button type="button" id="holdRecordBtn">
             <svg width="40" height="40" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
               <circle cx="32" cy="32" r="30" stroke="#888" stroke-width="4" fill="#f5f5f5"/>
               <rect x="26" y="16" width="12" height="24" rx="6" fill="#888"/>
@@ -40,9 +40,6 @@
               <path d="M20 32a12 12 0 0 0 24 0" stroke="#888" stroke-width="3" fill="none"/>
             </svg>
           </button>
-          <div style="text-align:center;margin-bottom:10px;font-size:0.9em;color:#888;">
-            Tap to record/stop
-          </div>
           <div id="recordProgressBar" style="width:80%;height:8px;background:#eee;border-radius:4px;margin:8px 0;display:none;">
             <div id="recordProgress" style="height:100%;width:0;background:#ff8000;border-radius:4px;"></div>
           </div>
@@ -57,14 +54,17 @@
           </div>
         </div>
       </div>
-      <div class="input-wrapper">
+      <div class="input-wrapper" style="display: none;">
         <label>
           <input id="terms" type="checkbox" required>
           <a href="tnc.html">Accept terms and conditions</a>.
         </label>
       </div>
-      <div class="button-wrapper">
+      <div class="button-wrapper" style="display: none;">
         <button type="submit" class="submit-button" onclick="console.log('Send button clicked')">Send</button>
+      </div>
+      <div class="button-wrapper">
+        <button type="button" class="submit-button" style="background-color: #6D3900; color: white; font-family: Trajan;" onclick="console.log('Next button clicked')">Next</button>
       </div>
     </form>
     <div class="security-message">
@@ -78,11 +78,11 @@
     <div class="message" id="receiverMessage">
       <h1 id="greeting">Loading...</h1 >
     </div>
-    <div id="playVoiceWrapper" style="display:flex;flex-direction:column;align-items:center;justify-content:center;margin:32px 0 32px 0;">
-      <button id="playVoiceBtn" style="background:#fff;border:none;box-shadow:0 4px 16px rgba(255,128,0,0.12);cursor:pointer;display:flex;align-items:center;justify-content:center;width:64px;height:64px;border-radius:50%;margin-bottom:12px;transition:box-shadow 0.2s;">
+    <div id="playVoiceWrapper">
+      <button id="playVoiceBtn">
         <span class="material-icons" style="font-size:40px;color:#ff8000;">play_circle_filled</span>
       </button>
-      <span id="playVoiceMsg" style="font-size:1.15em;color:#ff8000;font-weight:500;letter-spacing:0.5px;">Play your message</span>
+      <span id="playVoiceText">TAP TO LISTEN</span>
     </div>
   </div>
 

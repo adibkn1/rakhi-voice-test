@@ -31,7 +31,8 @@ body, html {
 .sender-container, .receiver-container {
   display: flex;
   flex-direction: column;
-  justify-content: flex-end;
+  justify-content: flex-start; /* Change to flex-start to have more control over positioning */
+  align-items: center; /* Center horizontally */
   height: 100%;
   background-size: cover;
   background-position: center;
@@ -40,13 +41,11 @@ body, html {
 .sender-container {
   background: url('Images/sender.webp') no-repeat center center;
   background-size: cover;
-
 }
 
 .receiver-container {
   background: url('Images/receiver.webp') no-repeat center center;
   background-size: cover;
-
 }
 
 /* Mobile-first styling (default) */
@@ -73,24 +72,100 @@ body, html {
   z-index: 100; /* Ensure the logo is on top */
 }
 
+/* Form container positioning */
+#rakhiForm {
+  margin-top: 55vh; /* Position the form 60% from the top of the screen */
+  width: 56%;
+  padding: 20px;
+  max-width: 300px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
 
 /* Style each form element */
 .form-group {
-  width: 56%;
+  width: 100%;
   margin-bottom: 1vh;
-  padding: 20px;
-  max-width: 300px;
+}
+
+/* Voice recorder UI styling */
+#voiceRecorderUI {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 100px; /* Give some height to the container */
+}
+
+#holdRecordBtn {
+  align-self: center;
+  margin: auto 0; /* Center vertically */
+  background: none;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  background: #fff;
+}
+
+/* Receiver side audio play button positioning */
+#playVoiceWrapper {
+  position: absolute;
+  left: 50%;
+  top: 55vh;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+#playVoiceBtn {
+  background: #fff;
+  border: none;
+  box-shadow: 0 4px 16px rgba(255,128,0,0.12);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  margin-bottom: 12px;
+  transition: box-shadow 0.2s;
+}
+
+#playVoiceMsg {
+  font-size: 1.15em;
+  color: #ff8000;
+  font-weight: 500;
+  letter-spacing: 0.5px;
+}
+
+#playVoiceText {
+  font-family: Trajan;
+  color: #6D3900;
+  font-size: 1.2em;
+  margin-top: 8px;
+  text-align: center;
 }
 
 .security-message {
   font-size: 1vh;
   text-align: center;
   max-width: 300px;
-  margin-bottom: 18vh;
   width: 70%;
   font-size: 12px;
   color: #6D3900;
   font-family: Trajan;
+  margin-top: 10px; /* Small gap after the form */
 }
 
 /* Add a gap between input fields */
@@ -212,11 +287,11 @@ input:focus::placeholder {
 .message {
   text-transform: uppercase;
   position: absolute;
-  top: 25vh;
-  width: 40%;
+  top: 19vh; /* Changed from 25vh to 20vh to move it higher */
+  width: 30%;
   text-align: center;
   color: #6D3900;
-  font-size: 1vh;
+  font-size: 0.5vh;
   z-index: 10;
   pointer-events: none;
   font-family: 'MyCustomFont', 'Times New Roman', Times, serif; /* Use custom font with fallback */
@@ -224,12 +299,20 @@ input:focus::placeholder {
 
 .greeting-title {
   color: #4D9952;
-  font-size: 3.2vh;
+  font-size: 2.5vh;
   font-family: 'Trajan';
+  max-width: 100%;
+  line-height: 0.8;
+  /* Force single line */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  /* Remove multi-line properties */
+  display: block;
 }
 
 .greeting-message {
-  font-size: 1.8vh;
+  font-size: 1.7vh;
   color: #6D3900; 
   font-family: 'Trajan', 'Times New Roman', Times, serif; /* Use TRAJAN font with fallback */
 }

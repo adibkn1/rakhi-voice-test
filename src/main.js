@@ -87,6 +87,53 @@ function setupForm() {
         .catch(() => { lastAudioBlob = null; });
     });
   }
+  
+  // Get the input fields
+  const sisterNameInput = document.getElementById('sisterName');
+  const brotherNameInput = document.getElementById('brotherName');
+  const termsCheckbox = document.getElementById('terms');
+  
+  // Auto-check the terms checkbox since it's hidden
+  if (termsCheckbox) {
+    termsCheckbox.checked = true;
+  }
+
+  // Add Next button functionality
+  const nextButton = document.querySelector('button[onclick*="Next button clicked"]');
+  if (nextButton) {
+    nextButton.addEventListener('click', function() {
+      // Change background image
+      const senderContainer = document.getElementById('senderContainer');
+      senderContainer.style.backgroundImage = "url('Images/sender2.webp')";
+      
+      // Hide name input fields
+      const nameInputs = document.querySelectorAll('#sisterName, #brotherName');
+      nameInputs.forEach(input => {
+        input.parentElement.style.display = 'none';
+      });
+      
+      // Hide Next button
+      nextButton.parentElement.style.display = 'none';
+      
+      // Show voice recorder UI
+      const voiceRecorderUI = document.getElementById('voiceRecorderUI');
+      if (voiceRecorderUI) {
+        voiceRecorderUI.parentElement.style.display = 'flex';
+      }
+      
+      // Show Submit button
+      const submitButton = document.querySelector('button[type="submit"]');
+      if (submitButton) {
+        submitButton.parentElement.style.display = 'block';
+      }
+      
+      // Show terms and conditions
+      const termsWrapper = document.querySelector('input[id="terms"]').parentElement.parentElement;
+      if (termsWrapper) {
+        termsWrapper.style.display = 'block';
+      }
+    });
+  }
 
   if (form) {
     form.addEventListener('submit', async function(event) {
@@ -159,7 +206,6 @@ function showReceiverSide(token) {
   const senderContainer = document.getElementById('senderContainer');
   const receiverContainer = document.getElementById('receiverContainer');
   const cameraContainer = document.getElementById('camera-container');
-  const playVoiceMsg = document.getElementById('playVoiceMsg');
   const playVoiceBtn = document.getElementById('playVoiceBtn');
   const playVoiceWrapper = document.getElementById('playVoiceWrapper');
   let audio = null;
@@ -178,7 +224,7 @@ function showReceiverSide(token) {
       if (rakhiData) {
         document.getElementById('greeting').innerHTML = `
           <span class="greeting-title">HEY </span><br>
-          <span class="greeting-title">${rakhiData.brotherName}!</span><br>
+          <span class="greeting-title" id="brotherNameTitle">${rakhiData.brotherName}!</span><br>
           <span class="greeting-message"> your sibling has sent you a special digital rakhi to celebrate the bond you share.</span>
         `;
 
@@ -187,53 +233,136 @@ function showReceiverSide(token) {
           <span class="greeting-message">${rakhiData.brotherName}! your sibling has sent you a special digital rakhi to celebrate the bond you share.</span>
         `;
 
-        // Always show play icon and message
-        if (playVoiceMsg && playVoiceBtn) {
-          playVoiceMsg.style.display = 'block';
-          console.log('Audio URL from Firebase:', rakhiData.audioURL);
+        // Adjust font size for long names
+        const brotherNameTitle = document.getElementById('brotherNameTitle');
+        if (brotherNameTitle) {
+          const nameLength = rakhiData.brotherName.length;
+          let fontSize = 2.5; // Default font size in vh
           
-          // Check if audioURL exists and is valid
-          if (!rakhiData.audioURL) {
-            console.error('No audio URL found in the data');
-            playVoiceMsg.textContent = 'No voice message available';
-            
-            // If no audio, allow tapping anywhere to start the experience
-            receiverContainer.addEventListener('click', (e) => {
-              handleTap(receiverContainer, cameraContainer, rakhiData);
-            });
-            
-            return;
+          if (nameLength > 25) {
+            fontSize = 1.2;
+          } else if (nameLength > 20) {
+            fontSize = 1.5;
+          } else if (nameLength > 15) {
+            fontSize = 1.8;
+          } else if (nameLength > 10) {
+            fontSize = 2.0;
           }
           
+          brotherNameTitle.style.fontSize = fontSize + 'vh';
+          console.log(`Adjusted font size to ${fontSize}vh for name length: ${nameLength}`);
+        }
+
+        // Set up audio playback if audio URL exists
+        if (playVoiceBtn && rakhiData.audioURL) {
+          console.log('Audio URL from Firebase:', rakhiData.audioURL);
+          
+          // Get the text element
+          const playVoiceText = document.getElementById('playVoiceText');
+          
+          // Set initial state to loading
+          if (playVoiceText) playVoiceText.textContent = 'LOADING';
+          
+          // Create audio element
           audio = new Audio(rakhiData.audioURL);
           
-          // Add event listeners to debug audio loading
+          // Track audio state
+          let isPlaying = false;
+          let isLoaded = false;
+          let playingCheckInterval = null;
+          
+          // Function to check if audio is actually playing
+          function checkIfPlaying() {
+            if (audio && !audio.paused && !audio.ended && audio.currentTime > 0) {
+              console.log('Audio is actually playing - currentTime:', audio.currentTime);
+              isPlaying = true;
+              if (playVoiceText) playVoiceText.textContent = 'PLAYING';
+            } else if (isPlaying && (audio.paused || audio.ended)) {
+              console.log('Audio stopped playing');
+              isPlaying = false;
+              if (isLoaded) {
+                if (playVoiceText) playVoiceText.textContent = 'TAP TO LISTEN';
+              } else {
+                if (playVoiceText) playVoiceText.textContent = 'LOADING';
+              }
+              if (playingCheckInterval) {
+                clearInterval(playingCheckInterval);
+                playingCheckInterval = null;
+              }
+            }
+          }
+          
+          // Add event listeners for audio
           audio.addEventListener('error', (e) => {
             console.error('Audio error:', e);
-            playVoiceMsg.textContent = 'Error loading audio';
-            
-            // If audio fails, allow tapping anywhere to start the experience
-            receiverContainer.addEventListener('click', (e) => {
-              handleTap(receiverContainer, cameraContainer, rakhiData);
-            });
+            isPlaying = false;
+            isLoaded = false;
+            if (playVoiceText) playVoiceText.textContent = 'TAP TO LISTEN';
+            if (playingCheckInterval) {
+              clearInterval(playingCheckInterval);
+              playingCheckInterval = null;
+            }
+          });
+          
+          audio.addEventListener('loadstart', () => {
+            console.log('Audio loading started');
+            isLoaded = false;
+            if (playVoiceText) playVoiceText.textContent = 'LOADING';
           });
           
           audio.addEventListener('canplaythrough', () => {
             console.log('Audio loaded successfully and can be played');
+            isLoaded = true;
+            if (!isPlaying) {
+              if (playVoiceText) playVoiceText.textContent = 'TAP TO LISTEN';
+            }
           });
           
-          // Add event listener for when audio playback ends
+          audio.addEventListener('play', () => {
+            console.log('Audio started playing - play event fired');
+            isPlaying = true;
+            if (playVoiceText) playVoiceText.textContent = 'PLAYING';
+            // Start checking playing state
+            if (!playingCheckInterval) {
+              playingCheckInterval = setInterval(checkIfPlaying, 100);
+            }
+          });
+          
+          audio.addEventListener('playing', () => {
+            console.log('Audio is playing - playing event fired');
+            isPlaying = true;
+            if (playVoiceText) playVoiceText.textContent = 'PLAYING';
+          });
+          
+          audio.addEventListener('pause', () => {
+            console.log('Audio paused');
+            isPlaying = false;
+            if (isLoaded) {
+              if (playVoiceText) playVoiceText.textContent = 'TAP TO LISTEN';
+            } else {
+              if (playVoiceText) playVoiceText.textContent = 'LOADING';
+            }
+            if (playingCheckInterval) {
+              clearInterval(playingCheckInterval);
+              playingCheckInterval = null;
+            }
+          });
+          
           audio.addEventListener('ended', () => {
             console.log('Audio playback completed, launching AR experience');
-            // Show a message that experience is loading
-            playVoiceMsg.textContent = 'Loading experience...';
+            isPlaying = false;
+            if (playVoiceText) playVoiceText.textContent = 'TAP TO LISTEN';
+            if (playingCheckInterval) {
+              clearInterval(playingCheckInterval);
+              playingCheckInterval = null;
+            }
             // Short delay before launching camera experience
             setTimeout(() => {
               handleTap(receiverContainer, cameraContainer, rakhiData);
             }, 500);
           });
           
-          // Make the play button only play audio, stopping event propagation
+          // Set up play button click handler
           playVoiceBtn.onclick = (e) => {
             e.stopPropagation(); // Prevent the click from bubbling up to the container
             console.log('Play button clicked, attempting to play audio');
@@ -241,22 +370,38 @@ function showReceiverSide(token) {
             // Disable the container click event while audio is playing
             receiverContainer.style.pointerEvents = 'none';
             
-            // Change the message to indicate audio is playing
-            playVoiceMsg.textContent = 'Playing message...';
+            // Change text to playing immediately when clicked
+            if (playVoiceText) playVoiceText.textContent = 'PLAYING';
+            isPlaying = true;
             
             audio.currentTime = 0;
-            audio.play().catch(err => {
+            audio.play().then(() => {
+              console.log('Audio.play() promise resolved - audio should be playing');
+              isPlaying = true;
+              if (playVoiceText) playVoiceText.textContent = 'PLAYING';
+              // Start checking playing state
+              if (!playingCheckInterval) {
+                playingCheckInterval = setInterval(checkIfPlaying, 100);
+              }
+            }).catch(err => {
               console.error('Error playing audio:', err);
+              isPlaying = false;
               alert('Could not play the audio. Please try again.');
-              playVoiceMsg.textContent = 'Play your message';
+              if (isLoaded) {
+                if (playVoiceText) playVoiceText.textContent = 'TAP TO LISTEN';
+              } else {
+                if (playVoiceText) playVoiceText.textContent = 'LOADING';
+              }
               receiverContainer.style.pointerEvents = 'auto';
+              if (playingCheckInterval) {
+                clearInterval(playingCheckInterval);
+                playingCheckInterval = null;
+              }
             });
           };
-          
-          // Remove the click event from the container since we're auto-launching after audio
-          // No need for the user to tap anywhere else
         } else {
-          // If no audio UI elements, allow tapping anywhere to start the experience
+          console.log('No audio URL found, allowing direct tap to AR experience');
+          // If no audio, allow tapping anywhere to start the experience
           receiverContainer.addEventListener('click', (e) => {
             handleTap(receiverContainer, cameraContainer, rakhiData);
           });
@@ -264,14 +409,12 @@ function showReceiverSide(token) {
       } else {
         document.getElementById('greeting').innerText = 'No Rakhi information found.';
         document.getElementById('greeting-overlay').innerText = 'No Rakhi information found.';
-        if (playVoiceMsg) playVoiceMsg.style.display = 'none';
       }
     }
   }, (error) => {
     console.error('Error fetching data:', error);
     document.getElementById('greeting').innerText = 'Failed to retrieve Rakhi information.';
     document.getElementById('greeting-overlay').innerText = 'Failed to retrieve Rakhi information.';
-    if (playVoiceMsg) playVoiceMsg.style.display = 'none';
   });
 }
 
