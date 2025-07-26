@@ -405,7 +405,47 @@ function showReceiverSide(token) {
           let playingCheckInterval = null;
           
           // Create audio element and start loading immediately
-          audio = new Audio(rakhiData.audioURL);
+          audio = new Audio();
+          
+          // Mobile-specific audio setup
+          audio.preload = 'auto'; // Force preloading
+          audio.crossOrigin = 'anonymous'; // Handle CORS issues
+          
+          // Set audio properties for better mobile compatibility
+          audio.controls = false;
+          audio.autoplay = false;
+          audio.muted = false;
+          audio.volume = 1.0;
+          
+          // Add mobile-specific event listeners
+          audio.addEventListener('loadstart', () => {
+            console.log('Audio loading started');
+            isLoaded = false;
+            if (playVoiceBtn) playVoiceBtn.classList.add('hidden'); // Keep button hidden while loading
+            if (playVoiceText) playVoiceText.textContent = 'LOADING';
+          });
+          
+          audio.addEventListener('loadedmetadata', () => {
+            console.log('Audio metadata loaded');
+          });
+          
+          audio.addEventListener('loadeddata', () => {
+            console.log('Audio data loaded');
+          });
+          
+          audio.addEventListener('canplay', () => {
+            console.log('Audio can play');
+          });
+          
+          audio.addEventListener('canplaythrough', () => {
+            console.log('Audio loaded successfully and can be played');
+            isLoaded = true;
+            // Show button only when audio is loaded
+            if (playVoiceBtn) playVoiceBtn.classList.remove('hidden');
+            if (!isPlaying) {
+              if (playVoiceText) playVoiceText.textContent = 'Tap and wait to listen';
+            }
+          });
           
           // Function to check if audio is actually playing
           function checkIfPlaying() {
@@ -431,6 +471,7 @@ function showReceiverSide(token) {
           // Add event listeners for audio
           audio.addEventListener('error', (e) => {
             console.error('Audio error:', e);
+            console.error('Audio error details:', audio.error);
             isPlaying = false;
             isLoaded = false;
             if (playVoiceBtn) playVoiceBtn.classList.remove('hidden'); // Show button even on error
@@ -438,23 +479,6 @@ function showReceiverSide(token) {
             if (playingCheckInterval) {
               clearInterval(playingCheckInterval);
               playingCheckInterval = null;
-            }
-          });
-          
-          audio.addEventListener('loadstart', () => {
-            console.log('Audio loading started');
-            isLoaded = false;
-            if (playVoiceBtn) playVoiceBtn.classList.add('hidden'); // Keep button hidden while loading
-            if (playVoiceText) playVoiceText.textContent = 'LOADING';
-          });
-          
-          audio.addEventListener('canplaythrough', () => {
-            console.log('Audio loaded successfully and can be played');
-            isLoaded = true;
-            // Show button only when audio is loaded
-            if (playVoiceBtn) playVoiceBtn.classList.remove('hidden');
-            if (!isPlaying) {
-              if (playVoiceText) playVoiceText.textContent = 'Tap and wait to listen';
             }
           });
           
@@ -515,7 +539,7 @@ function showReceiverSide(token) {
               if (playVoiceText) playVoiceText.textContent = 'PLAYING';
               isPlaying = true;
               
-            audio.currentTime = 0;
+              audio.currentTime = 0;
               audio.play().then(() => {
                 console.log('Audio.play() promise resolved - audio should be playing');
                 isPlaying = true;
@@ -541,6 +565,10 @@ function showReceiverSide(token) {
               });
             };
           }
+          
+          // Start loading the audio
+          console.log('Starting to load audio from URL:', rakhiData.audioURL);
+          audio.src = rakhiData.audioURL;
         } else {
           console.log('No audio URL found, allowing direct tap to AR experience');
           // If no audio, allow tapping anywhere to start the experience
