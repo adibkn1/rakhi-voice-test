@@ -788,7 +788,7 @@ async function startCameraKit(rakhiData) {
     });
 
     const session = await cameraKit.createSession();
-    const lens = await cameraKit.lensRepository.loadLens('d5d8d026-effa-4d97-8147-64b6c6b1435e', 'fdd0879f-c570-490e-9dfc-cba0f122699f');
+    const lens = await cameraKit.lensRepository.loadLens('20ef7516-0029-41be-a6b2-37a3602e56b6');
     await session.applyLens(lens, {
       launchParams: {
         greeting_text: `Hey ${rakhiData.brotherName}!`,
