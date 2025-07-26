@@ -60472,7 +60472,7 @@ function showReceiverSide(token) {
               console.log('Audio stopped playing');
               isPlaying = false;
               if (isLoaded) {
-                if (playVoiceText) playVoiceText.textContent = 'TAP TO LISTEN';
+                if (playVoiceText) playVoiceText.textContent = 'Tap and wait to listen';
               } else {
                 if (playVoiceText) playVoiceText.textContent = 'LOADING';
               }
@@ -60489,7 +60489,7 @@ function showReceiverSide(token) {
             isPlaying = false;
             isLoaded = false;
             if (playVoiceBtn) playVoiceBtn.classList.remove('hidden'); // Show button even on error
-            if (playVoiceText) playVoiceText.textContent = 'TAP TO LISTEN';
+            if (playVoiceText) playVoiceText.textContent = 'Tap and wait to listen';
             if (playingCheckInterval) {
               clearInterval(playingCheckInterval);
               playingCheckInterval = null;
@@ -60509,7 +60509,7 @@ function showReceiverSide(token) {
             // Show button only when audio is loaded
             if (playVoiceBtn) playVoiceBtn.classList.remove('hidden');
             if (!isPlaying) {
-              if (playVoiceText) playVoiceText.textContent = 'TAP TO LISTEN';
+              if (playVoiceText) playVoiceText.textContent = 'Tap and wait to listen';
             }
           });
           
@@ -60533,7 +60533,7 @@ function showReceiverSide(token) {
             console.log('Audio paused');
             isPlaying = false;
             if (isLoaded) {
-              if (playVoiceText) playVoiceText.textContent = 'TAP TO LISTEN';
+              if (playVoiceText) playVoiceText.textContent = 'Tap and wait to listen';
             } else {
               if (playVoiceText) playVoiceText.textContent = 'LOADING';
             }
@@ -60546,7 +60546,7 @@ function showReceiverSide(token) {
           audio.addEventListener('ended', () => {
             console.log('Audio playback completed, launching AR experience');
             isPlaying = false;
-            if (playVoiceText) playVoiceText.textContent = 'TAP TO LISTEN';
+            if (playVoiceText) playVoiceText.textContent = 'Tap and wait to listen';
             if (playingCheckInterval) {
               clearInterval(playingCheckInterval);
               playingCheckInterval = null;
@@ -60584,7 +60584,7 @@ function showReceiverSide(token) {
                 isPlaying = false;
                 alert('Could not play the audio. Please try again.');
                 if (isLoaded) {
-                  if (playVoiceText) playVoiceText.textContent = 'TAP TO LISTEN';
+                  if (playVoiceText) playVoiceText.textContent = 'Tap and wait to listen';
                 } else {
                   if (playVoiceText) playVoiceText.textContent = 'LOADING';
                 }
