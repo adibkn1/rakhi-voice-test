@@ -309,7 +309,7 @@ console.log('loggin', sisterName, brotherName, termsAccepted)
               await new Promise(resolve => setTimeout(resolve, 1000));
               
               // Try native sharing
-              await handleSharing(uniqueLink);
+              const sharingSuccess = await attemptNativeSharing(uniqueLink);
               
               if (sharingSuccess) {
                 showCopyFeedback('Opening sharing options...');
