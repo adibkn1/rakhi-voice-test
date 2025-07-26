@@ -699,18 +699,13 @@ async function copyToClipboard(text) {
 // Native sharing function with fallbacks
 async function attemptNativeSharing(link) {
   try {
-    // Detect device/browser
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-    const isAndroid = /Android/.test(navigator.userAgent);
-    const isMobile = isIOS || isAndroid;
-    
-    // Try Web Share API first (works on most mobile browsers)
+    // Try Web Share API (works on most mobile browsers)
     if (navigator.share) {
       console.log('Using Web Share API');
       try {
         await navigator.share({
-          title: 'Digital Rakhi - Send Your Love',
-          text: 'Check out this digital Rakhi I sent you! Celebrate the eternal bond of love.',
+          title: 'Rakhi in 30 secs',
+          text: 'Check out this digital Rakhi I sent you!',
           url: link
         });
         console.log('Web Share API successful');
@@ -720,41 +715,12 @@ async function attemptNativeSharing(link) {
         if (shareError.name !== 'AbortError') {
           console.warn('Web Share API error:', shareError);
         }
-        // Continue to fallbacks
+        return false;
       }
     }
     
-    // Mobile-specific fallbacks
-    if (isMobile) {
-      console.log('Using mobile-specific sharing fallbacks');
-      
-      // Try multiple sharing options for mobile
-      const shareUrls = [
-        // WhatsApp (works on both iOS and Android)
-        `whatsapp://send?text=${encodeURIComponent('Check out this digital Rakhi I sent you! ' + link)}`,
-        
-        // SMS (works on iOS and Android)
-        `sms:?body=${encodeURIComponent('Check out this digital Rakhi I sent you! ' + link)}`,
-        
-        // Email (universal fallback)
-        `mailto:?subject=${encodeURIComponent('Digital Rakhi')}&body=${encodeURIComponent('Check out this digital Rakhi I sent you! ' + link)}`
-      ];
-      
-      // Try each sharing option until one works
-      for (let i = 0; i < shareUrls.length; i++) {
-        try {
-          const shareWindow = window.open(shareUrls[i], '_blank');
-          if (shareWindow) {
-            console.log('Opened sharing option:', shareUrls[i]);
-            return true;
-          }
-        } catch (e) {
-          console.warn('Failed to open sharing option:', shareUrls[i], e);
-        }
-      }
-    }
-    
-    // If we get here, all sharing attempts failed, but we still have the clipboard copy
+    // If Web Share API is not available, return false
+    console.log('Web Share API not available');
     return false;
   } catch (err) {
     console.warn('Native sharing failed:', err);
