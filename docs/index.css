@@ -1,3 +1,8 @@
+/* Hidden class for elements that need to be temporarily hidden */
+.hidden {
+  display: none !important;
+}
+
 /* Reset body and html */
 body, html {
   height: 100%;
@@ -294,7 +299,7 @@ input:focus::placeholder {
 .message {
   text-transform: uppercase;
   position: absolute;
-  top: 19vh; /* Changed from 25vh to 20vh to move it higher */
+  top: 20vh; /* Changed from 25vh to 20vh to move it higher */
   width: 30%;
   text-align: center;
   color: #6D3900;

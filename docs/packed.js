@@ -60260,7 +60260,8 @@ function setupForm() {
   }
 
   if (form) {
-    form.addEventListener('submit', async function(event) {
+    // Create a named function for the form submit handler
+    const formSubmitHandler = async function(event) {
       event.preventDefault();
 
       const sisterName = document.getElementById('sisterName').value.trim();
@@ -60282,6 +60283,7 @@ function setupForm() {
 
       const token = generateRandomToken();
       let audioURL = null;
+      let uniqueLink = '';
 
       try {
         // Use the recorded audio blob if available
@@ -60323,18 +60325,53 @@ function setupForm() {
         console.log('Data saved to Firebase with audio URL:', audioURL);
 
         // Generate the unique link
-        const uniqueLink = `${window.location.origin}${window.location.pathname}?token=${token}`;
+        uniqueLink = `${window.location.origin}${window.location.pathname}?token=${token}`;
         console.log('Generated unique link:', uniqueLink);
         
-        // Update button text to show sharing is about to happen
+        // Enable the button and change text to "Click to Share"
         if (submitButton) {
-          submitButton.textContent = 'Sharing...';
+          submitButton.textContent = 'Click to Share';
+          submitButton.disabled = false;
+          
+          // Remove the form submit event
+          form.removeEventListener('submit', formSubmitHandler);
+          
+          // Add a new click handler for sharing
+          submitButton.addEventListener('click', async function() {
+            // Disable button during sharing
+            submitButton.disabled = true;
+            submitButton.textContent = 'Sharing...';
+            
+            try {
+              // First copy to clipboard when user clicks the share button
+              await copyToClipboard(uniqueLink);
+              showCopyFeedback('Link copied to clipboard!');
+              
+              // Short delay to ensure user sees the clipboard message
+              await new Promise(resolve => setTimeout(resolve, 1000));
+              
+              // Try native sharing
+              const sharingSuccess = await attemptNativeSharing(uniqueLink);
+              
+              if (sharingSuccess) {
+                showCopyFeedback('Opening sharing options...');
+                // Give the sharing dialog time to appear before redirecting
+                await new Promise(resolve => setTimeout(resolve, 1500));
+              } else {
+                showCopyFeedback('Link copied! You can paste and share it.');
+                await new Promise(resolve => setTimeout(resolve, 2000));
+              }
+              
+              // Redirect to thank-you page
+              window.location.href = 'thank-you.html';
+            } catch (err) {
+              console.error('Error in sharing:', err);
+              showCopyFeedback('Error sharing. Link is copied to clipboard.');
+              submitButton.disabled = false;
+              submitButton.textContent = 'Try Sharing Again';
+            }
+          });
         }
-        
-        // Now that we have the unique link, handle sharing
-        await handleSharing(uniqueLink);
-        
-        // Note: The handleSharing function now handles the redirect
       } catch (error) {
         console.error('Error saving data or generating link:', error);
         alert('Failed to process your request. Please try again.');
@@ -60345,7 +60382,10 @@ function setupForm() {
           submitButton.disabled = false;
         }
       }
-    });
+    };
+    
+    // Add the named event handler
+    form.addEventListener('submit', formSubmitHandler);
   }
 }
 
@@ -60355,29 +60395,39 @@ function showReceiverSide(token) {
   const cameraContainer = document.getElementById('camera-container');
   const playVoiceBtn = document.getElementById('playVoiceBtn');
   const playVoiceWrapper = document.getElementById('playVoiceWrapper');
+  const playVoiceText = document.getElementById('playVoiceText');
   let audio = null;
 
   senderContainer.style.display = 'none';
   receiverContainer.style.display = 'flex';
 
-  // Always show play icon and message
-  if (playVoiceWrapper) playVoiceWrapper.style.display = 'flex';
+  // Set initial state - show wrapper but hide button until audio loads
+  if (playVoiceWrapper) {
+    playVoiceWrapper.style.display = 'flex';
+    if (playVoiceText) playVoiceText.textContent = 'LOADING';
+  }
+  
+  if (playVoiceBtn) {
+    playVoiceBtn.classList.add('hidden'); // Hide button initially with a class
+  }
 
+  // Immediately start fetching data
   const rakhiRef = ref(database, 'rakhis');
   onValue(rakhiRef, (snapshot) => {
     const data = snapshot.val();
     if (data) {
       const rakhiData = Object.values(data).find((entry) => entry.token === token);
       if (rakhiData) {
+        // Immediately update greeting
         document.getElementById('greeting').innerHTML = `
           <span class="greeting-title">HEY </span><br>
           <span class="greeting-title" id="brotherNameTitle">${rakhiData.brotherName}!</span><br>
-          <span class="greeting-message"> your sibling has sent you a special digital rakhi to celebrate the bond you share.</span>
+          <span class="greeting-message"> your sibling has sent you a digital rakhi with a special surprise.</span>
         `;
 
         document.getElementById('greeting-overlay').innerHTML = `
           <span class="greeting-title">HEY</span><br>
-          <span class="greeting-message">${rakhiData.brotherName}! your sibling has sent you a special digital rakhi to celebrate the bond you share.</span>
+          <span class="greeting-message">${rakhiData.brotherName}! your sibling has sent you a digital rakhi with a special surprise.</span>
         `;
 
         // Adjust font size for long names
@@ -60400,23 +60450,17 @@ function showReceiverSide(token) {
           console.log(`Adjusted font size to ${fontSize}vh for name length: ${nameLength}`);
         }
 
-        // Set up audio playback if audio URL exists
-        if (playVoiceBtn && rakhiData.audioURL) {
+        // Set up audio playback if audio URL exists - start loading immediately
+        if (rakhiData.audioURL) {
           console.log('Audio URL from Firebase:', rakhiData.audioURL);
-          
-          // Get the text element
-          const playVoiceText = document.getElementById('playVoiceText');
-          
-          // Set initial state to loading
-          if (playVoiceText) playVoiceText.textContent = 'LOADING';
-          
-          // Create audio element
-          audio = new Audio(rakhiData.audioURL);
           
           // Track audio state
           let isPlaying = false;
           let isLoaded = false;
           let playingCheckInterval = null;
+          
+          // Create audio element and start loading immediately
+          audio = new Audio(rakhiData.audioURL);
           
           // Function to check if audio is actually playing
           function checkIfPlaying() {
@@ -60444,6 +60488,7 @@ function showReceiverSide(token) {
             console.error('Audio error:', e);
             isPlaying = false;
             isLoaded = false;
+            if (playVoiceBtn) playVoiceBtn.classList.remove('hidden'); // Show button even on error
             if (playVoiceText) playVoiceText.textContent = 'TAP TO LISTEN';
             if (playingCheckInterval) {
               clearInterval(playingCheckInterval);
@@ -60454,12 +60499,15 @@ function showReceiverSide(token) {
           audio.addEventListener('loadstart', () => {
             console.log('Audio loading started');
             isLoaded = false;
+            if (playVoiceBtn) playVoiceBtn.classList.add('hidden'); // Keep button hidden while loading
             if (playVoiceText) playVoiceText.textContent = 'LOADING';
           });
           
           audio.addEventListener('canplaythrough', () => {
             console.log('Audio loaded successfully and can be played');
             isLoaded = true;
+            // Show button only when audio is loaded
+            if (playVoiceBtn) playVoiceBtn.classList.remove('hidden');
             if (!isPlaying) {
               if (playVoiceText) playVoiceText.textContent = 'TAP TO LISTEN';
             }
@@ -60509,46 +60557,50 @@ function showReceiverSide(token) {
             }, 500);
           });
           
-          // Set up play button click handler
-          playVoiceBtn.onclick = (e) => {
-            e.stopPropagation(); // Prevent the click from bubbling up to the container
-            console.log('Play button clicked, attempting to play audio');
-            
-            // Disable the container click event while audio is playing
-            receiverContainer.style.pointerEvents = 'none';
-            
-            // Change text to playing immediately when clicked
-            if (playVoiceText) playVoiceText.textContent = 'PLAYING';
-            isPlaying = true;
-            
-            audio.currentTime = 0;
-            audio.play().then(() => {
-              console.log('Audio.play() promise resolved - audio should be playing');
-              isPlaying = true;
+          // Set up play button click handler if button exists
+          if (playVoiceBtn) {
+            playVoiceBtn.onclick = (e) => {
+              e.stopPropagation(); // Prevent the click from bubbling up to the container
+              console.log('Play button clicked, attempting to play audio');
+              
+              // Disable the container click event while audio is playing
+              receiverContainer.style.pointerEvents = 'none';
+              
+              // Change text to playing immediately when clicked
               if (playVoiceText) playVoiceText.textContent = 'PLAYING';
-              // Start checking playing state
-              if (!playingCheckInterval) {
-                playingCheckInterval = setInterval(checkIfPlaying, 100);
-              }
-            }).catch(err => {
-              console.error('Error playing audio:', err);
-              isPlaying = false;
-              alert('Could not play the audio. Please try again.');
-              if (isLoaded) {
-                if (playVoiceText) playVoiceText.textContent = 'TAP TO LISTEN';
-              } else {
-                if (playVoiceText) playVoiceText.textContent = 'LOADING';
-              }
-              receiverContainer.style.pointerEvents = 'auto';
-              if (playingCheckInterval) {
-                clearInterval(playingCheckInterval);
-                playingCheckInterval = null;
-              }
-            });
-          };
+              isPlaying = true;
+              
+              audio.currentTime = 0;
+              audio.play().then(() => {
+                console.log('Audio.play() promise resolved - audio should be playing');
+                isPlaying = true;
+                if (playVoiceText) playVoiceText.textContent = 'PLAYING';
+                // Start checking playing state
+                if (!playingCheckInterval) {
+                  playingCheckInterval = setInterval(checkIfPlaying, 100);
+                }
+              }).catch(err => {
+                console.error('Error playing audio:', err);
+                isPlaying = false;
+                alert('Could not play the audio. Please try again.');
+                if (isLoaded) {
+                  if (playVoiceText) playVoiceText.textContent = 'TAP TO LISTEN';
+                } else {
+                  if (playVoiceText) playVoiceText.textContent = 'LOADING';
+                }
+                receiverContainer.style.pointerEvents = 'auto';
+                if (playingCheckInterval) {
+                  clearInterval(playingCheckInterval);
+                  playingCheckInterval = null;
+                }
+              });
+            };
+          }
         } else {
           console.log('No audio URL found, allowing direct tap to AR experience');
           // If no audio, allow tapping anywhere to start the experience
+          if (playVoiceText) playVoiceText.textContent = 'TAP TO EXPERIENCE';
+          if (playVoiceBtn) playVoiceBtn.classList.remove('hidden'); // Show button anyway
           receiverContainer.addEventListener('click', (e) => {
             handleTap(receiverContainer, cameraContainer, rakhiData);
           });
@@ -60948,8 +61000,7 @@ function downloadImage(blob) {
 // Voice Recording Functionality
 // --- Voice Recorder UI Elements ---
 const holdRecordBtn = document.getElementById('holdRecordBtn');
-const recordProgressBar = document.getElementById('recordProgressBar');
-const recordProgress = document.getElementById('recordProgress');
+const timerContainer = document.getElementById('timerContainer');
 const recordTimer = document.getElementById('recordTimer');
 const afterRecordBtns = document.getElementById('afterRecordBtns');
 const playRecordingBtn = document.getElementById('playRecordingBtn');
@@ -60965,11 +61016,9 @@ let isRecording = false;
 
 function resetVoiceRecorderUI() {
   holdRecordBtn.style.display = 'flex';
-  recordProgressBar.style.display = 'none';
-  recordTimer.style.display = 'none';
+  timerContainer.style.display = 'none';
   afterRecordBtns.style.display = 'none';
-  recordProgress.style.width = '0';
-  recordTimer.textContent = '0:00';
+  recordTimer.textContent = '10'; // Reset to 10 seconds
   recordedAudioBlob = null;
   recordedAudioUrl = null;
   isRecording = false;
@@ -60982,8 +61031,11 @@ function resetVoiceRecorderUI() {
 function updateRecordTimerAndProgress() {
   const elapsed = (Date.now() - recordStartTime) / 1000;
   const maxDuration = 10;
-  recordTimer.textContent = `0:${elapsed < 10 ? '0' : ''}${Math.floor(elapsed)}`;
-  recordProgress.style.width = `${Math.min(100, (elapsed / maxDuration) * 100)}%`;
+  const remainingSeconds = maxDuration - elapsed;
+  
+  // Format the countdown timer (10 to 0) - just show the number
+  recordTimer.textContent = remainingSeconds <= 0 ? '0' : `${Math.ceil(remainingSeconds)}`;
+  
   if (elapsed >= maxDuration) {
     stopVoiceRecording();
   }
@@ -60993,12 +61045,10 @@ function startVoiceRecording() {
   console.log('Voice recording started');
   audioChunks = [];
   recordStartTime = Date.now();
-  recordProgressBar.style.display = 'block';
-  recordTimer.style.display = 'block';
+  timerContainer.style.display = 'block';
   holdRecordBtn.style.display = 'none';
   afterRecordBtns.style.display = 'none';
-  recordProgress.style.width = '0';
-  recordTimer.textContent = '0:00';
+  recordTimer.textContent = '10'; // Start with 10 seconds
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
     alert('Your browser does not support audio recording.');
     console.error('MediaDevices or getUserMedia not supported');
@@ -61030,8 +61080,7 @@ function startVoiceRecording() {
         recordedAudioUrl = URL.createObjectURL(recordedAudioBlob);
         console.log('Voice recording stopped, blob created:', recordedAudioBlob);
         console.log('Audio MIME type:', mimeType);
-        recordProgressBar.style.display = 'none';
-        recordTimer.style.display = 'none';
+        timerContainer.style.display = 'none';
         afterRecordBtns.style.display = 'flex';
         isRecording = false;
       };

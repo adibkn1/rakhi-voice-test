@@ -5,10 +5,10 @@
 
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>Digital Rakhi - Send Your Love</title>
+  <title>Rakhi in 30 secs</title>
 
   <!-- Open Graph meta tags for Facebook, WhatsApp, etc. -->
-  <meta property="og:title" content="Digital Rakhi - Send Your Love" />
+  <meta property="og:title" content="Rakhi in 30 secs" />
   <meta property="og:description" content="Celebrate the eternal bond of love with a digital Rakhi. Send your emotions in just 30 seconds!" />
   <meta property="og:image" content="./Images/thumb.jpg" />
   <meta property="og:image:width" content="1200" />
@@ -16,11 +16,11 @@
   <meta property="og:image:alt" content="Digital Rakhi - Celebrate the eternal bond of love" />
   <meta property="og:url" content="" />
   <meta property="og:type" content="website" />
-  <meta property="og:site_name" content="Digital Rakhi" />
+  <meta property="og:site_name" content="Rakhi in 30 secs" />
 
   <!-- Twitter Card meta tags -->
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="Digital Rakhi - Send Your Love" />
+  <meta name="twitter:title" content="Rakhi in 30 secs" />
   <meta name="twitter:description" content="Celebrate the eternal bond of love with a digital Rakhi. Send your emotions in just 30 seconds!" />
   <meta name="twitter:image" content="./Images/thumb.jpg" />
   <meta name="twitter:image:alt" content="Digital Rakhi - Celebrate the eternal bond of love" />
@@ -30,7 +30,7 @@
   <meta name="keywords" content="digital rakhi, rakhi, rakhi online, send rakhi, digital gift" />
 
   <link href="index.css" rel="stylesheet">
-  <script defer src="./packed.js"></script>
+  <script defer src="./packed.js?v=1.8"></script>
   <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 </head>
 <body>
@@ -54,10 +54,13 @@
               <path d="M20 32a12 12 0 0 0 24 0" stroke="#888" stroke-width="3" fill="none"/>
             </svg>
           </button>
-          <div id="recordProgressBar" style="width:80%;height:8px;background:#eee;border-radius:4px;margin:8px 0;display:none;">
-            <div id="recordProgress" style="height:100%;width:0;background:#ff8000;border-radius:4px;"></div>
+
+          <div id="timerContainer" style="position:relative;width:64px;height:64px;margin:10px auto;display:none;">
+            <svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="32" cy="32" r="30" stroke="#ff8000" stroke-width="0" fill="#f5f5f5"/>
+            </svg>
+            <div id="recordTimer" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:1.6em;color:#ff8000;font-weight:regular;"></div>
           </div>
-          <div id="recordTimer" style="font-size:1.1em;color:#ff8000;margin-bottom:8px;display:none;">0:00</div>
           <div id="afterRecordBtns" style="display:none;flex-direction:row;gap:18px;justify-content:center;align-items:center;">
             <button type="button" id="playRecordingBtn" style="background:#fff;border:2px solid #ff8000;border-radius:50%;width:44px;height:44px;display:flex;align-items:center;justify-content:center;font-size:22px;color:#ff8000;box-shadow:0 2px 8px rgba(255,128,0,0.10);cursor:pointer;">
               <span class="material-icons">play_arrow</span>
