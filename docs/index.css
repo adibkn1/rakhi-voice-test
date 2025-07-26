@@ -311,7 +311,7 @@ input:focus::placeholder {
 
 .greeting-title {
   color: #4D9952;
-  font-size: 2.5vh;
+  font-size: 2vh;
   font-family: 'Trajan';
   max-width: 100%;
   line-height: 0.8;

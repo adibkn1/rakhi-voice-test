@@ -60433,21 +60433,8 @@ function showReceiverSide(token) {
         // Adjust font size for long names
         const brotherNameTitle = document.getElementById('brotherNameTitle');
         if (brotherNameTitle) {
-          const nameLength = rakhiData.brotherName.length;
-          let fontSize = 2.5; // Default font size in vh
-          
-          if (nameLength > 25) {
-            fontSize = 1.2;
-          } else if (nameLength > 20) {
-            fontSize = 1.5;
-          } else if (nameLength > 15) {
-            fontSize = 1.8;
-          } else if (nameLength > 10) {
-            fontSize = 2.0;
-          }
-          
-          brotherNameTitle.style.fontSize = fontSize + 'vh';
-          console.log(`Adjusted font size to ${fontSize}vh for name length: ${nameLength}`);
+          brotherNameTitle.style.fontSize = '2vh';
+          console.log('Set font size to 2vh for brother name');
         }
 
         // Set up audio playback if audio URL exists - start loading immediately
