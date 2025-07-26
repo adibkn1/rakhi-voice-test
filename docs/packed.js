@@ -60344,8 +60344,6 @@ console.log('loggin', sisterName, brotherName, termsAccepted)
             
             try {
               // First copy to clipboard when user clicks the share button
-              await copyToClipboard(uniqueLink);
-              showCopyFeedback('Link copied to clipboard!');
               
               // Short delay to ensure user sees the clipboard message
               await new Promise(resolve => setTimeout(resolve, 1000));
@@ -60638,14 +60636,6 @@ async function handleSharing(link) {
     // Show a message that we're preparing the image
     showCopyFeedback('Preparing image with link...');
     
-    // First, copy to clipboard
-    const clipboardSuccess = await copyToClipboard(link);
-    
-    if (clipboardSuccess) {
-      showCopyFeedback('Link copied to clipboard!');
-      await new Promise(resolve => setTimeout(resolve, 1000));
-    }
-    
     // Always download the image with link
     console.log('Downloading image with link');
     
@@ -60679,7 +60669,7 @@ async function handleSharing(link) {
             downloadLink.click();
             
             // Show success message
-            showCopyFeedback('Image downloaded! Link copied to clipboard.');
+            showCopyFeedback('Image downloaded!');
             
             // Redirect after a delay
             setTimeout(() => {
@@ -60691,7 +60681,7 @@ async function handleSharing(link) {
       })
       .catch(err => {
         console.warn('Failed to download image:', err);
-        showCopyFeedback('Link copied! Redirecting...');
+        showCopyFeedback('Download failed! Redirecting...');
         setTimeout(() => {
           window.location.href = 'thank-you.html';
         }, 1500);
@@ -60699,66 +60689,10 @@ async function handleSharing(link) {
     
   } catch (err) {
     console.error('Error in sharing flow:', err);
-    showCopyFeedback('Link saved! Redirecting...');
+    showCopyFeedback('Error occurred! Redirecting...');
     setTimeout(() => {
       window.location.href = 'thank-you.html';
     }, 1500);
-  }
-}
-
-// Modern clipboard copy function with fallbacks
-async function copyToClipboard(text) {
-  try {
-    // Try the modern async Clipboard API first (most reliable on modern browsers)
-    if (navigator.clipboard && window.isSecureContext) {
-      console.log('Using modern clipboard API');
-      await navigator.clipboard.writeText(text);
-      return true;
-    }
-    
-    // iOS Safari specific fallback (most reliable on iOS)
-    if (/iPad|iPhone|iPod/.test(navigator.userAgent) && /Safari/.test(navigator.userAgent)) {
-      console.log('Using iOS Safari clipboard fallback');
-      const tempTextarea = document.createElement('textarea');
-      tempTextarea.value = text;
-      tempTextarea.style.position = 'fixed';
-      tempTextarea.style.opacity = '0';
-      tempTextarea.style.zIndex = '-1';
-      tempTextarea.style.pointerEvents = 'none';
-      tempTextarea.style.left = '-9999px'; // Position off-screen
-      tempTextarea.setAttribute('readonly', ''); // Prevent keyboard from appearing on mobile
-      
-      document.body.appendChild(tempTextarea);
-      
-      // Handle iOS Safari
-      const range = document.createRange();
-      range.selectNodeContents(tempTextarea);
-      
-      const selection = window.getSelection();
-      selection.removeAllRanges();
-      selection.addRange(range);
-      
-      tempTextarea.setSelectionRange(0, text.length);
-      
-      const successful = document.execCommand('copy');
-      document.body.removeChild(tempTextarea);
-      
-      if (successful) return true;
-    }
-    
-    // General fallback for other browsers
-    console.log('Using general clipboard fallback');
-    const tempInput = document.createElement('textarea');
-    tempInput.value = text;
-    document.body.appendChild(tempInput);
-    tempInput.select();
-    document.execCommand('copy');
-    document.body.removeChild(tempInput);
-    
-    return true;
-  } catch (err) {
-    console.warn('Clipboard copy failed:', err);
-    return false;
   }
 }
 
