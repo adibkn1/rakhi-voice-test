@@ -227,7 +227,7 @@ function setupForm() {
       const sisterName = document.getElementById('sisterName').value.trim();
       const brotherName = document.getElementById('brotherName').value.trim();
       const termsAccepted = document.getElementById('terms').checked;
-      console.log('loggin', sisterName, brotherName, termsAccepted)
+console.log('loggin', sisterName, brotherName, termsAccepted)
       if (!sisterName || !brotherName || !termsAccepted) {
         alert('Please fill out all fields and accept the terms.');
         return;
@@ -323,7 +323,7 @@ function setupForm() {
               }
               
               // Redirect to thank-you page
-              window.location.href = 'thank-you.html';
+        window.location.href = 'thank-you.html';
             } catch (err) {
               console.error('Error in sharing:', err);
               showCopyFeedback('Error sharing. Link is copied to clipboard.');
@@ -517,7 +517,7 @@ function showReceiverSide(token) {
               if (playVoiceText) playVoiceText.textContent = 'PLAYING';
               isPlaying = true;
               
-              audio.currentTime = 0;
+            audio.currentTime = 0;
               audio.play().then(() => {
                 console.log('Audio.play() promise resolved - audio should be playing');
                 isPlaying = true;
@@ -719,8 +719,55 @@ async function attemptNativeSharing(link) {
       }
     }
     
-    // If Web Share API is not available, return false
-    console.log('Web Share API not available');
+    // If Web Share API is not available, download the thumb image as fallback
+    console.log('Web Share API not available, downloading thumb image');
+    
+    // Create a notification that we're downloading the image
+    showCopyFeedback('Downloading image with link...');
+    
+    // Fetch the thumb.jpg image
+    fetch('./Images/thumb.jpg')
+      .then(response => response.blob())
+      .then(blob => {
+        // Create a link to download the image
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = 'rakhi_invitation.jpg';
+        
+        // Append text to the image using canvas
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          canvas.width = img.width;
+          canvas.height = img.height + 100; // Extra space for text
+          
+          const ctx = canvas.getContext('2d');
+          // Draw image
+          ctx.drawImage(img, 0, 0);
+          
+          // Draw text with link
+          ctx.fillStyle = '#6D3900';
+          ctx.font = '16px Trajan';
+          ctx.textAlign = 'center';
+          ctx.fillText('Check out this digital Rakhi I sent you!', canvas.width/2, img.height + 30);
+          ctx.fillText(link, canvas.width/2, img.height + 60);
+          
+          // Convert to blob and download
+          canvas.toBlob(blob => {
+            const downloadLink = document.createElement('a');
+            downloadLink.href = URL.createObjectURL(blob);
+            downloadLink.download = 'rakhi_invitation.jpg';
+            downloadLink.click();
+          }, 'image/jpeg');
+        };
+        img.src = URL.createObjectURL(blob);
+      })
+      .catch(err => {
+        console.warn('Failed to download image:', err);
+        // If image download fails, just show a message that the link was copied
+        showCopyFeedback('Link copied to clipboard!');
+      });
+    
     return false;
   } catch (err) {
     console.warn('Native sharing failed:', err);
@@ -774,7 +821,7 @@ function showCopyFeedback(message) {
       }
       if (style.parentNode) {
         style.parentNode.removeChild(style);
-      }
+  }
     }, 300);
   }, 2000);
 }
@@ -979,7 +1026,7 @@ function startVoiceRecording() {
         mediaRecorder = new MediaRecorder(stream, options);
       } catch (e) {
         console.warn('MediaRecorder with options failed, trying without options', e);
-        mediaRecorder = new MediaRecorder(stream);
+      mediaRecorder = new MediaRecorder(stream);
       }
       
       // Request data every second instead of only on stop
@@ -1026,7 +1073,7 @@ function stopVoiceRecording() {
 if (holdRecordBtn) {
   holdRecordBtn.addEventListener('click', () => {
     if (!isRecording) {
-      startVoiceRecording();
+    startVoiceRecording();
     } else {
       stopVoiceRecording();
     }
