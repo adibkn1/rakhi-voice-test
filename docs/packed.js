@@ -60635,48 +60635,74 @@ async function handleSharing(link) {
   try {
     console.log('Sharing link:', link);
     
-    // Show a message that the link is being prepared
-    showCopyFeedback('Preparing link...');
+    // Show a message that we're preparing the image
+    showCopyFeedback('Preparing image with link...');
     
-    // First, try to copy to clipboard using the most reliable methods
+    // First, copy to clipboard
     const clipboardSuccess = await copyToClipboard(link);
     
     if (clipboardSuccess) {
-      // Show success message for clipboard copy
       showCopyFeedback('Link copied to clipboard!');
-      
-      // Short delay to ensure user sees the clipboard message
       await new Promise(resolve => setTimeout(resolve, 1000));
     }
     
-    // Then try native sharing
-    const sharingSuccess = await attemptNativeSharing(link);
+    // Always download the image with link
+    console.log('Downloading image with link');
     
-    // If sharing was successful, show a message
-    if (sharingSuccess) {
-      showCopyFeedback('Opening sharing options...');
-      
-      // Give the sharing dialog time to appear before redirecting
-      await new Promise(resolve => setTimeout(resolve, 1500));
-    } else {
-      // If sharing wasn't successful but clipboard was, show a longer message
-      if (clipboardSuccess) {
-        showCopyFeedback('Link copied! You can now paste and share it.');
-        await new Promise(resolve => setTimeout(resolve, 2000));
-      }
-    }
+    // Fetch the thumb.jpg image
+    fetch('./Images/thumb.jpg')
+      .then(response => response.blob())
+      .then(blob => {
+        // Create image and add text
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          canvas.width = img.width;
+          canvas.height = img.height + 100; // Extra space for text
+          
+          const ctx = canvas.getContext('2d');
+          // Draw image
+          ctx.drawImage(img, 0, 0);
+          
+          // Draw text with link
+          ctx.fillStyle = '#6D3900';
+          ctx.font = '16px Trajan';
+          ctx.textAlign = 'center';
+          ctx.fillText('Check out this digital Rakhi I sent you!', canvas.width/2, img.height + 30);
+          ctx.fillText(link, canvas.width/2, img.height + 60);
+          
+          // Convert to blob and download
+          canvas.toBlob(blob => {
+            const downloadLink = document.createElement('a');
+            downloadLink.href = URL.createObjectURL(blob);
+            downloadLink.download = 'rakhi_invitation.jpg';
+            downloadLink.click();
+            
+            // Show success message
+            showCopyFeedback('Image downloaded! Link copied to clipboard.');
+            
+            // Redirect after a delay
+            setTimeout(() => {
+              window.location.href = 'thank-you.html';
+            }, 2000);
+          }, 'image/jpeg');
+        };
+        img.src = URL.createObjectURL(blob);
+      })
+      .catch(err => {
+        console.warn('Failed to download image:', err);
+        showCopyFeedback('Link copied! Redirecting...');
+        setTimeout(() => {
+          window.location.href = 'thank-you.html';
+        }, 1500);
+      });
     
-    // Redirect to thank-you page
-    window.location.href = 'thank-you.html';
   } catch (err) {
     console.error('Error in sharing flow:', err);
-    
-    // Even if there's an error, show a message that the link was copied (if it was)
     showCopyFeedback('Link saved! Redirecting...');
-    
-    // Short delay before redirect
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    window.location.href = 'thank-you.html';
+    setTimeout(() => {
+      window.location.href = 'thank-you.html';
+    }, 1500);
   }
 }
 
