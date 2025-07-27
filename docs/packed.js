@@ -60399,24 +60399,25 @@ function showReceiverSide(token) {
   senderContainer.style.display = 'none';
   receiverContainer.style.display = 'flex';
 
-  // Set initial state - show wrapper but hide button until audio loads
+  // Set initial state - hide wrapper until audio loads
   if (playVoiceWrapper) {
-    playVoiceWrapper.style.display = 'flex';
-    if (playVoiceText) playVoiceText.textContent = 'LOADING';
+    playVoiceWrapper.style.display = 'none'; // Hide completely until audio is ready
   }
   
   if (playVoiceBtn) {
-    playVoiceBtn.classList.add('hidden'); // Hide button initially with a class
+    playVoiceBtn.classList.add('hidden');
   }
 
-  // Immediately start fetching data
+  // Fetch data and initialize both greeting and audio in parallel
   const rakhiRef = ref(database, 'rakhis');
   onValue(rakhiRef, (snapshot) => {
     const data = snapshot.val();
     if (data) {
       const rakhiData = Object.values(data).find((entry) => entry.token === token);
       if (rakhiData) {
-        // Immediately update greeting
+        console.log('Rakhi data found, initializing greeting and audio in parallel');
+        
+        // Update greeting
         document.getElementById('greeting').innerHTML = `
           <span class="greeting-title">HEY </span><br>
           <span class="greeting-title" id="brotherNameTitle">${rakhiData.brotherName}!</span><br>
@@ -60434,162 +60435,9 @@ function showReceiverSide(token) {
           brotherNameTitle.style.fontSize = '2vh';
           console.log('Set font size to 2vh for brother name');
         }
-
-        // Set up audio playback if audio URL exists - start loading immediately
-        if (rakhiData.audioURL) {
-          console.log('Audio URL from Firebase:', rakhiData.audioURL);
-          
-          // Track audio state
-          let isPlaying = false;
-          let isLoaded = false;
-          let playingCheckInterval = null;
-          
-          // Create audio element and start loading immediately
-          audio = new Audio(rakhiData.audioURL);
-          
-          // Function to check if audio is actually playing
-          function checkIfPlaying() {
-            if (audio && !audio.paused && !audio.ended && audio.currentTime > 0) {
-              console.log('Audio is actually playing - currentTime:', audio.currentTime);
-              isPlaying = true;
-              if (playVoiceText) playVoiceText.textContent = 'PLAYING';
-            } else if (isPlaying && (audio.paused || audio.ended)) {
-              console.log('Audio stopped playing');
-              isPlaying = false;
-              if (isLoaded) {
-                if (playVoiceText) playVoiceText.textContent = 'Tap and wait to listen';
-              } else {
-                if (playVoiceText) playVoiceText.textContent = 'LOADING';
-              }
-              if (playingCheckInterval) {
-                clearInterval(playingCheckInterval);
-                playingCheckInterval = null;
-              }
-            }
-          }
-          
-          // Add event listeners for audio
-          audio.addEventListener('error', (e) => {
-            console.error('Audio error:', e);
-            isPlaying = false;
-            isLoaded = false;
-            if (playVoiceBtn) playVoiceBtn.classList.remove('hidden'); // Show button even on error
-            if (playVoiceText) playVoiceText.textContent = 'Tap and wait to listen';
-            if (playingCheckInterval) {
-              clearInterval(playingCheckInterval);
-              playingCheckInterval = null;
-            }
-          });
-          
-          audio.addEventListener('loadstart', () => {
-            console.log('Audio loading started');
-            isLoaded = false;
-            if (playVoiceBtn) playVoiceBtn.classList.add('hidden'); // Keep button hidden while loading
-            if (playVoiceText) playVoiceText.textContent = 'LOADING';
-          });
-          
-          audio.addEventListener('canplaythrough', () => {
-            console.log('Audio loaded successfully and can be played');
-            isLoaded = true;
-            // Show button only when audio is loaded
-            if (playVoiceBtn) playVoiceBtn.classList.remove('hidden');
-            if (!isPlaying) {
-              if (playVoiceText) playVoiceText.textContent = 'Tap and wait to listen';
-            }
-          });
-          
-          audio.addEventListener('play', () => {
-            console.log('Audio started playing - play event fired');
-            isPlaying = true;
-            if (playVoiceText) playVoiceText.textContent = 'PLAYING';
-            // Start checking playing state
-            if (!playingCheckInterval) {
-              playingCheckInterval = setInterval(checkIfPlaying, 100);
-            }
-          });
-          
-          audio.addEventListener('playing', () => {
-            console.log('Audio is playing - playing event fired');
-            isPlaying = true;
-            if (playVoiceText) playVoiceText.textContent = 'PLAYING';
-          });
-          
-          audio.addEventListener('pause', () => {
-            console.log('Audio paused');
-            isPlaying = false;
-            if (isLoaded) {
-              if (playVoiceText) playVoiceText.textContent = 'Tap and wait to listen';
-            } else {
-              if (playVoiceText) playVoiceText.textContent = 'LOADING';
-            }
-            if (playingCheckInterval) {
-              clearInterval(playingCheckInterval);
-              playingCheckInterval = null;
-            }
-          });
-          
-          audio.addEventListener('ended', () => {
-            console.log('Audio playback completed, launching AR experience');
-            isPlaying = false;
-            if (playVoiceText) playVoiceText.textContent = 'Tap and wait to listen';
-            if (playingCheckInterval) {
-              clearInterval(playingCheckInterval);
-              playingCheckInterval = null;
-            }
-            // Short delay before launching camera experience
-            setTimeout(() => {
-              handleTap(receiverContainer, cameraContainer, rakhiData);
-            }, 500);
-          });
-          
-          // Set up play button click handler if button exists
-          if (playVoiceBtn) {
-            playVoiceBtn.onclick = (e) => {
-              e.stopPropagation(); // Prevent the click from bubbling up to the container
-              console.log('Play button clicked, attempting to play audio');
-              
-              // Disable the container click event while audio is playing
-              receiverContainer.style.pointerEvents = 'none';
-              
-              // Change text to playing immediately when clicked
-              if (playVoiceText) playVoiceText.textContent = 'PLAYING';
-              isPlaying = true;
-              
-            audio.currentTime = 0;
-              audio.play().then(() => {
-                console.log('Audio.play() promise resolved - audio should be playing');
-                isPlaying = true;
-                if (playVoiceText) playVoiceText.textContent = 'PLAYING';
-                // Start checking playing state
-                if (!playingCheckInterval) {
-                  playingCheckInterval = setInterval(checkIfPlaying, 100);
-                }
-              }).catch(err => {
-                console.error('Error playing audio:', err);
-                isPlaying = false;
-                alert('Could not play the audio. Please try again.');
-                if (isLoaded) {
-                  if (playVoiceText) playVoiceText.textContent = 'Tap and wait to listen';
-                } else {
-                  if (playVoiceText) playVoiceText.textContent = 'LOADING';
-                }
-                receiverContainer.style.pointerEvents = 'auto';
-                if (playingCheckInterval) {
-                  clearInterval(playingCheckInterval);
-                  playingCheckInterval = null;
-                }
-              });
-            };
-          }
-        } else {
-          console.log('No audio URL found, allowing direct tap to AR experience');
-          // If no audio, allow tapping anywhere to start the experience
-          if (playVoiceText) playVoiceText.textContent = 'TAP TO EXPERIENCE';
-          if (playVoiceBtn) playVoiceBtn.classList.remove('hidden'); // Show button anyway
-          receiverContainer.addEventListener('click', (e) => {
-            handleTap(receiverContainer, cameraContainer, rakhiData);
-          });
-        }
+        
+        // Initialize audio immediately in parallel with greeting display
+        initializeAudio(rakhiData, receiverContainer, cameraContainer, playVoiceBtn, playVoiceWrapper, playVoiceText);
       } else {
         document.getElementById('greeting').innerText = 'No Rakhi information found.';
         document.getElementById('greeting-overlay').innerText = 'No Rakhi information found.';
@@ -60600,6 +60448,191 @@ function showReceiverSide(token) {
     document.getElementById('greeting').innerText = 'Failed to retrieve Rakhi information.';
     document.getElementById('greeting-overlay').innerText = 'Failed to retrieve Rakhi information.';
   });
+}
+
+// Separate function to initialize audio after greeting is displayed
+function initializeAudio(rakhiData, receiverContainer, cameraContainer, playVoiceBtn, playVoiceWrapper, playVoiceText) {
+  let audio = null;
+  
+  // Set up audio playback if audio URL exists
+  if (rakhiData.audioURL) {
+    console.log('Audio URL from Firebase:', rakhiData.audioURL);
+    
+    // Track audio state
+    let isPlaying = false;
+    let isLoaded = false;
+    let playingCheckInterval = null;
+    
+    // Create audio element
+    audio = new Audio();
+    
+    // Set audio properties before setting src to improve mobile compatibility
+    audio.preload = 'auto';
+    audio.crossOrigin = 'anonymous'; // Try to avoid CORS issues
+    
+    // Function to check if audio is actually playing
+    function checkIfPlaying() {
+      if (audio && !audio.paused && !audio.ended && audio.currentTime > 0) {
+        console.log('Audio is actually playing - currentTime:', audio.currentTime);
+        isPlaying = true;
+        if (playVoiceText) playVoiceText.textContent = 'PLAYING';
+      } else if (isPlaying && (audio.paused || audio.ended)) {
+        console.log('Audio stopped playing');
+        isPlaying = false;
+        if (isLoaded) {
+          if (playVoiceText) playVoiceText.textContent = 'Tap and wait to listen';
+        } else {
+          if (playVoiceText) playVoiceText.textContent = 'LOADING';
+        }
+        if (playingCheckInterval) {
+          clearInterval(playingCheckInterval);
+          playingCheckInterval = null;
+        }
+      }
+    }
+    
+    // Add event listeners for audio
+    audio.addEventListener('error', (e) => {
+      console.error('Audio error:', e);
+      console.error('Audio error details:', audio.error);
+      isPlaying = false;
+      isLoaded = false;
+      if (playVoiceBtn) playVoiceBtn.classList.remove('hidden'); // Show button even on error
+      if (playVoiceText) playVoiceText.textContent = 'Tap and wait to listen';
+      if (playingCheckInterval) {
+        clearInterval(playingCheckInterval);
+        playingCheckInterval = null;
+      }
+      
+      // Try to reload the audio with a different format if available
+      if (!audio.src.includes('&audioFormat=mp3')) {
+        console.log('Retrying with explicit MP3 format');
+        const retryUrl = rakhiData.audioURL + '&audioFormat=mp3';
+        audio.src = retryUrl;
+        audio.load();
+      }
+    });
+    
+    audio.addEventListener('loadstart', () => {
+      console.log('Audio loading started');
+      isLoaded = false;
+      if (playVoiceWrapper) playVoiceWrapper.style.display = 'flex'; // Show wrapper when loading starts
+      if (playVoiceBtn) playVoiceBtn.classList.add('hidden'); // Keep button hidden while loading
+      if (playVoiceText) playVoiceText.textContent = 'LOADING';
+    });
+    
+    audio.addEventListener('canplaythrough', () => {
+      console.log('Audio loaded successfully and can be played');
+      isLoaded = true;
+      // Show button only when audio is loaded
+      if (playVoiceBtn) playVoiceBtn.classList.remove('hidden');
+      if (!isPlaying) {
+        if (playVoiceText) playVoiceText.textContent = 'Tap and wait to listen';
+      }
+    });
+    
+    audio.addEventListener('play', () => {
+      console.log('Audio started playing - play event fired');
+      isPlaying = true;
+      if (playVoiceText) playVoiceText.textContent = 'PLAYING';
+      // Start checking playing state
+      if (!playingCheckInterval) {
+        playingCheckInterval = setInterval(checkIfPlaying, 100);
+      }
+    });
+    
+    audio.addEventListener('playing', () => {
+      console.log('Audio is playing - playing event fired');
+      isPlaying = true;
+      if (playVoiceText) playVoiceText.textContent = 'PLAYING';
+    });
+    
+    audio.addEventListener('pause', () => {
+      console.log('Audio paused');
+      isPlaying = false;
+      if (isLoaded) {
+        if (playVoiceText) playVoiceText.textContent = 'Tap and wait to listen';
+      } else {
+        if (playVoiceText) playVoiceText.textContent = 'LOADING';
+      }
+      if (playingCheckInterval) {
+        clearInterval(playingCheckInterval);
+        playingCheckInterval = null;
+      }
+    });
+    
+    audio.addEventListener('ended', () => {
+      console.log('Audio playback completed, launching AR experience');
+      isPlaying = false;
+      if (playVoiceText) playVoiceText.textContent = 'Tap and wait to listen';
+      if (playingCheckInterval) {
+        clearInterval(playingCheckInterval);
+        playingCheckInterval = null;
+      }
+      
+      // Launch camera experience immediately when audio ends
+      handleTap(receiverContainer, cameraContainer, rakhiData);
+    });
+    
+    // Set up play button click handler if button exists
+    if (playVoiceBtn) {
+      playVoiceBtn.onclick = (e) => {
+        e.stopPropagation(); // Prevent the click from bubbling up to the container
+        console.log('Play button clicked, attempting to play audio');
+        
+        // Disable the container click event while audio is playing
+        receiverContainer.style.pointerEvents = 'none';
+        
+        // Change text to playing immediately when clicked
+        if (playVoiceText) playVoiceText.textContent = 'PLAYING';
+        
+        // Try to reset and reload audio if it failed before
+        if (!isLoaded && audio.error) {
+          console.log('Audio had error, trying to reload before playing');
+          audio.load();
+        }
+        
+        audio.currentTime = 0;
+        audio.play().then(() => {
+          console.log('Audio.play() promise resolved - audio should be playing');
+          isPlaying = true;
+          if (playVoiceText) playVoiceText.textContent = 'PLAYING';
+          // Start checking playing state
+          if (!playingCheckInterval) {
+            playingCheckInterval = setInterval(checkIfPlaying, 100);
+          }
+        }).catch(err => {
+          console.error('Error playing audio:', err);
+          isPlaying = false;
+          alert('Could not play the audio. Please try again.');
+          if (isLoaded) {
+            if (playVoiceText) playVoiceText.textContent = 'Tap and wait to listen';
+          } else {
+            if (playVoiceText) playVoiceText.textContent = 'LOADING';
+          }
+          receiverContainer.style.pointerEvents = 'auto';
+          if (playingCheckInterval) {
+            clearInterval(playingCheckInterval);
+            playingCheckInterval = null;
+          }
+        });
+      };
+    }
+    
+    // Set audio source after all event listeners are attached
+    audio.src = rakhiData.audioURL;
+    console.log('Starting audio load with src:', audio.src);
+    audio.load(); // Explicitly call load() to start loading the audio
+  } else {
+    console.log('No audio URL found, allowing direct tap to AR experience');
+    // If no audio, allow tapping anywhere to start the experience
+    if (playVoiceWrapper) playVoiceWrapper.style.display = 'flex'; // Show wrapper even without audio
+    if (playVoiceText) playVoiceText.textContent = 'TAP TO EXPERIENCE';
+    if (playVoiceBtn) playVoiceBtn.classList.remove('hidden'); // Show button anyway
+    receiverContainer.addEventListener('click', (e) => {
+      handleTap(receiverContainer, cameraContainer, rakhiData);
+    });
+  }
 }
 
 
