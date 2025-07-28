@@ -60967,9 +60967,15 @@ function captureScreenshot(canvas) {
     // Set the preview image source
     previewImage.src = imageUrl;
     
-    // Hide camera container and show preview
-    cameraContainer.style.display = 'none';
-    previewContainer.style.display = 'flex';
+    // Ensure the image is loaded before showing the preview
+    previewImage.onload = () => {
+      // Hide camera container and show preview
+      cameraContainer.style.display = 'none';
+      previewContainer.style.display = 'flex';
+      
+      // Force layout recalculation to ensure everything is positioned correctly
+      window.scrollTo(0, 0);
+    };
     
     // Store the blob for later use
     window.capturedImageBlob = blob;
@@ -61011,7 +61017,11 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('retakeButton').addEventListener('click', () => {
     // Hide preview container and show camera container
     document.getElementById('preview-container').style.display = 'none';
-    document.getElementById('camera-container').style.display = 'block';
+    const cameraContainer = document.getElementById('camera-container');
+    cameraContainer.style.display = 'block';
+    
+    // Force layout recalculation to ensure camera is positioned correctly
+    window.scrollTo(0, 0);
     
     // Clear the stored blob
     window.capturedImageBlob = null;
