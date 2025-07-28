@@ -60956,8 +60956,41 @@ function captureScreenshot(canvas) {
 
     logEvent(analytics, 'image_capture');
 
-    const file = new File([blob], 'digital_rakhi.png', { type: 'image/png' });
+    // Create a URL for the blob to display in the preview
+    const imageUrl = URL.createObjectURL(blob);
+    
+    // Show the preview container and hide the camera container
+    const cameraContainer = document.getElementById('camera-container');
+    const previewContainer = document.getElementById('preview-container');
+    const previewImage = document.getElementById('previewImage');
+    
+    // Set the preview image source
+    previewImage.src = imageUrl;
+    
+    // Hide camera container and show preview
+    cameraContainer.style.display = 'none';
+    previewContainer.style.display = 'flex';
+    
+    // Store the blob for later use
+    window.capturedImageBlob = blob;
+  }, 'image/png');
+}
 
+// Add event listeners for share and retake buttons
+document.addEventListener('DOMContentLoaded', () => {
+  // Event listeners will be set up after canvas is initialized
+  // The original captureButton event listener is already set up in startCameraKit function
+  
+  // Share button event listener
+  document.getElementById('shareButton').addEventListener('click', () => {
+    const blob = window.capturedImageBlob;
+    if (!blob) {
+      console.error('No image captured');
+      return;
+    }
+    
+    const file = new File([blob], 'digital_rakhi.png', { type: 'image/png' });
+    
     if (navigator.canShare && navigator.canShare({ files: [file] })) {
       navigator.share({
         files: [file],
@@ -60971,12 +61004,19 @@ function captureScreenshot(canvas) {
       });
     } else {
       downloadImage(blob);
-      // Optionally, you can redirect after the download if needed
-      // window.location.href = 'thank-your.html';
     }
-  }, 'image/png');
-}
-
+  });
+  
+  // Retake button event listener
+  document.getElementById('retakeButton').addEventListener('click', () => {
+    // Hide preview container and show camera container
+    document.getElementById('preview-container').style.display = 'none';
+    document.getElementById('camera-container').style.display = 'block';
+    
+    // Clear the stored blob
+    window.capturedImageBlob = null;
+  });
+});
 
 function downloadImage(blob) {
   const link = document.createElement('a');
@@ -60987,7 +61027,7 @@ function downloadImage(blob) {
   // Add a delay to ensure the download is initiated before redirecting
   setTimeout(() => {
     window.location.href = 'thank-your.html'; // Redirect to the Thank You page
-  }, 3000); // 1-second delay, adjust if needed
+  }, 3000); // 3-second delay, adjust if needed
 }
 
 // Voice Recording Functionality
