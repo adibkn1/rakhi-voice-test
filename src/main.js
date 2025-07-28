@@ -413,6 +413,7 @@ function showReceiverSide(token) {
 // Separate function to initialize audio after greeting is displayed
 function initializeAudio(rakhiData, receiverContainer, cameraContainer, playVoiceBtn, playVoiceWrapper, playVoiceText) {
   let audio = null;
+  let audioHasPlayed = false; // Track if audio has been played once
   
   // Set up audio playback if audio URL exists
   if (rakhiData.audioURL) {
@@ -440,13 +441,29 @@ function initializeAudio(rakhiData, receiverContainer, cameraContainer, playVoic
         console.log('Audio stopped playing');
         isPlaying = false;
         if (isLoaded) {
-          if (playVoiceText) playVoiceText.textContent = 'Tap and wait to listen';
+          if (audioHasPlayed) {
+            if (playVoiceText) playVoiceText.textContent = 'TAP TO OPEN CAMERA';
+          } else {
+            if (playVoiceText) playVoiceText.textContent = 'Tap and wait to listen';
+          }
         } else {
           if (playVoiceText) playVoiceText.textContent = 'LOADING';
         }
         if (playingCheckInterval) {
           clearInterval(playingCheckInterval);
           playingCheckInterval = null;
+        }
+      }
+    }
+    
+    // Function to update button icon
+    function updateButtonIcon() {
+      const playIcon = playVoiceBtn.querySelector('.material-icons');
+      if (playIcon) {
+        if (audioHasPlayed && !isPlaying) {
+          playIcon.textContent = 'restart_alt'; // Restart icon
+        } else {
+          playIcon.textContent = 'play_circle_filled'; // Play icon
         }
       }
     }
@@ -458,11 +475,18 @@ function initializeAudio(rakhiData, receiverContainer, cameraContainer, playVoic
       isPlaying = false;
       isLoaded = false;
       if (playVoiceBtn) playVoiceBtn.classList.remove('hidden'); // Show button even on error
-      if (playVoiceText) playVoiceText.textContent = 'Tap and wait to listen';
+      if (playVoiceText) {
+        if (audioHasPlayed) {
+          playVoiceText.textContent = 'TAP TO OPEN CAMERA';
+        } else {
+          playVoiceText.textContent = 'Tap and wait to listen';
+        }
+      }
       if (playingCheckInterval) {
         clearInterval(playingCheckInterval);
         playingCheckInterval = null;
       }
+      updateButtonIcon();
       
       // Try to reload the audio with a different format if available
       if (!audio.src.includes('&audioFormat=mp3')) {
@@ -487,14 +511,20 @@ function initializeAudio(rakhiData, receiverContainer, cameraContainer, playVoic
       // Show button only when audio is loaded
       if (playVoiceBtn) playVoiceBtn.classList.remove('hidden');
       if (!isPlaying) {
-        if (playVoiceText) playVoiceText.textContent = 'Tap and wait to listen';
+        if (audioHasPlayed) {
+          if (playVoiceText) playVoiceText.textContent = 'TAP TO OPEN CAMERA';
+        } else {
+          if (playVoiceText) playVoiceText.textContent = 'Tap and wait to listen';
+        }
       }
+      updateButtonIcon();
     });
     
     audio.addEventListener('play', () => {
       console.log('Audio started playing - play event fired');
       isPlaying = true;
       if (playVoiceText) playVoiceText.textContent = 'PLAYING';
+      updateButtonIcon();
       // Start checking playing state
       if (!playingCheckInterval) {
         playingCheckInterval = setInterval(checkIfPlaying, 100);
@@ -505,13 +535,18 @@ function initializeAudio(rakhiData, receiverContainer, cameraContainer, playVoic
       console.log('Audio is playing - playing event fired');
       isPlaying = true;
       if (playVoiceText) playVoiceText.textContent = 'PLAYING';
+      updateButtonIcon();
     });
     
     audio.addEventListener('pause', () => {
       console.log('Audio paused');
       isPlaying = false;
       if (isLoaded) {
-        if (playVoiceText) playVoiceText.textContent = 'Tap and wait to listen';
+        if (audioHasPlayed) {
+          if (playVoiceText) playVoiceText.textContent = 'TAP TO OPEN CAMERA';
+        } else {
+          if (playVoiceText) playVoiceText.textContent = 'Tap and wait to listen';
+        }
       } else {
         if (playVoiceText) playVoiceText.textContent = 'LOADING';
       }
@@ -519,19 +554,29 @@ function initializeAudio(rakhiData, receiverContainer, cameraContainer, playVoic
         clearInterval(playingCheckInterval);
         playingCheckInterval = null;
       }
+      updateButtonIcon();
     });
     
     audio.addEventListener('ended', () => {
-      console.log('Audio playback completed, launching AR experience');
+      console.log('Audio playback completed');
       isPlaying = false;
-      if (playVoiceText) playVoiceText.textContent = 'Tap and wait to listen';
+      audioHasPlayed = true; // Mark that audio has been played
+      if (playVoiceText) playVoiceText.textContent = 'TAP TO OPEN CAMERA';
       if (playingCheckInterval) {
         clearInterval(playingCheckInterval);
         playingCheckInterval = null;
       }
+      updateButtonIcon();
       
-      // Launch camera experience immediately when audio ends
-      handleTap(receiverContainer, cameraContainer, rakhiData);
+      // Re-enable container click event for camera initialization
+      receiverContainer.style.pointerEvents = 'auto';
+      
+      // Set up container click handler for camera initialization
+      receiverContainer.addEventListener('click', (e) => {
+        if (audioHasPlayed && !isPlaying) {
+          handleTap(receiverContainer, cameraContainer, rakhiData);
+        }
+      }, { once: true }); // Use once: true to prevent multiple handlers
     });
     
     // Set up play button click handler if button exists
@@ -557,6 +602,7 @@ function initializeAudio(rakhiData, receiverContainer, cameraContainer, playVoic
           console.log('Audio.play() promise resolved - audio should be playing');
           isPlaying = true;
           if (playVoiceText) playVoiceText.textContent = 'PLAYING';
+          updateButtonIcon();
           // Start checking playing state
           if (!playingCheckInterval) {
             playingCheckInterval = setInterval(checkIfPlaying, 100);
@@ -566,7 +612,11 @@ function initializeAudio(rakhiData, receiverContainer, cameraContainer, playVoic
           isPlaying = false;
           alert('Could not play the audio. Please try again.');
           if (isLoaded) {
-            if (playVoiceText) playVoiceText.textContent = 'Tap and wait to listen';
+            if (audioHasPlayed) {
+              if (playVoiceText) playVoiceText.textContent = 'TAP TO OPEN CAMERA';
+            } else {
+              if (playVoiceText) playVoiceText.textContent = 'Tap and wait to listen';
+            }
           } else {
             if (playVoiceText) playVoiceText.textContent = 'LOADING';
           }
@@ -575,6 +625,7 @@ function initializeAudio(rakhiData, receiverContainer, cameraContainer, playVoic
             clearInterval(playingCheckInterval);
             playingCheckInterval = null;
           }
+          updateButtonIcon();
         });
       };
     }
@@ -582,7 +633,7 @@ function initializeAudio(rakhiData, receiverContainer, cameraContainer, playVoic
     // Set audio source after all event listeners are attached
     audio.src = rakhiData.audioURL;
     console.log('Starting audio load with src:', audio.src);
-    audio.load(); // Explicitly call load() to start loading the audio
+    audio.load();
   } else {
     console.log('No audio URL found, allowing direct tap to AR experience');
     // If no audio, allow tapping anywhere to start the experience
@@ -689,7 +740,7 @@ async function handleSharing(link) {
           ctx.fillStyle = '#6D3900';
           ctx.font = '16px Trajan';
           ctx.textAlign = 'center';
-          ctx.fillText('Check out this digital Rakhi I sent you!', canvas.width/2, img.height + 30);
+          ctx.fillText('Check out this digital Rakhi I have sent you! ', canvas.width/2, img.height + 30);
           ctx.fillText(link, canvas.width/2, img.height + 60);
           
           // Convert to blob and download
@@ -736,7 +787,7 @@ async function attemptNativeSharing(link) {
       try {
         await navigator.share({
           title: 'Rakhi in 30 secs',
-          text: 'Check out this digital Rakhi I sent you!',
+          text: 'Check out this digital Rakhi I have sent you! ',
           url: link
         });
         console.log('Web Share API successful');
@@ -780,7 +831,7 @@ async function attemptNativeSharing(link) {
           ctx.fillStyle = '#6D3900';
           ctx.font = '16px Trajan';
           ctx.textAlign = 'center';
-          ctx.fillText('Check out this digital Rakhi I sent you!', canvas.width/2, img.height + 30);
+          ctx.fillText('Check out this digital Rakhi I have sent you! ', canvas.width/2, img.height + 30);
           ctx.fillText(link, canvas.width/2, img.height + 60);
           
           // Convert to blob and download
