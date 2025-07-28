@@ -1,13 +1,17 @@
 /* Ensure the body and html take full height and center content */
-body, html {
-    margin: 0;
-    padding: 0;
-    height: 100%;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    background-color: rgb(255, 255, 255);
-    overflow: hidden;
+body {
+  margin: 0;
+  padding: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+  font-family: 'Arial', sans-serif;
+  color: white;
+  text-align: center;
+  background: url('Images/thankyou.webp') no-repeat center top;
+  background-size: cover;
+  overflow: hidden; /* Prevents scrollbars */
 }
 
 @font-face {
@@ -26,8 +30,9 @@ body, html {
     align-items: center;
     flex-direction: column;
     text-align: center;
-    background: url('Images/thankyou.webp') no-repeat center center;
-    background-size: cover;    padding: 20px;
+    background: url('Images/thankyou.webp') no-repeat center top;
+    background-size: cover;
+    padding: 20px;
     border-radius: 10px;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }

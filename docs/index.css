@@ -40,16 +40,16 @@ body, html {
   align-items: center; /* Center horizontally */
   height: 100%;
   background-size: cover;
-  background-position: center;
+  background-position: center top;
 }
 
 .sender-container {
-  background: url('Images/sender.webp') no-repeat center center;
+  background: url('Images/sender.webp') no-repeat center top;
   background-size: cover;
 }
 
 .receiver-container {
-  background: url('Images/receiver.webp') no-repeat center center;
+  background: url('Images/receiver.webp') no-repeat center top;
   background-size: cover;
 }
 
