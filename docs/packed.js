@@ -60638,17 +60638,55 @@ function initializeAudio(rakhiData, receiverContainer, cameraContainer, playVoic
 
 async function handleTap(receiverContainer, cameraContainer, rakhiData) {
   try {
-    await startCameraKit(rakhiData);
+    // Show loading state on the button
+    const playVoiceText = document.getElementById('playVoiceText');
+    if (playVoiceText) {
+      playVoiceText.textContent = 'Loading...';
+    }
 
+    // Show camera container immediately with loading indicator
+    const cameraLoading = document.getElementById('camera-loading');
+    if (cameraLoading) {
+      cameraLoading.style.display = 'flex';
+    }
+    
     cameraContainer.style.display = 'flex';
+    cameraContainer.style.backgroundColor = '#000'; // Set black background to avoid white screen
     receiverContainer.style.opacity = 0;
-    cameraContainer.style.opacity = 1;
+    
     setTimeout(() => {
       receiverContainer.style.display = 'none';
-    }, 1000);
+    }, 500); // Reduced timeout
+
+    // Initialize camera kit (this takes time)
+    await startCameraKit(rakhiData);
+
+    // Hide loading indicator after initialization
+    if (cameraLoading) {
+      cameraLoading.style.display = 'none';
+    }
+    
+    cameraContainer.style.opacity = 1;
 
   } catch (error) {
     console.error('Error initializing camera:', error);
+    
+    // Hide loading indicator and reset UI on error
+    const cameraLoading = document.getElementById('camera-loading');
+    if (cameraLoading) {
+      cameraLoading.style.display = 'none';
+    }
+    
+    // Reset the text if there's an error
+    const playVoiceText = document.getElementById('playVoiceText');
+    if (playVoiceText) {
+      playVoiceText.textContent = 'TAP TO LISTEN';
+    }
+    
+    // Hide camera container and show receiver container again
+    cameraContainer.style.display = 'none';
+    receiverContainer.style.display = 'flex';
+    receiverContainer.style.opacity = 1;
   }
 }
 
@@ -60861,19 +60899,31 @@ function showCopyFeedback(message) {
 
 async function startCameraKit(rakhiData) {
   const cameraContainer = document.getElementById('camera-container');
-  cameraContainer.style.opacity = 1;
-
+  
   try {
+    console.log('Starting Camera Kit initialization...');
+    
+    // Step 1: Bootstrap Camera Kit
+    console.log('Bootstrapping Camera Kit...');
     const cameraKit = await bootstrapCameraKit({
       apiToken: 'eyJhbGciOiJIUzI1NiIsImtpZCI6IkNhbnZhc1MyU0hNQUNQcm9kIiwidHlwIjoiSldUIn0.eyJhdWQiOiJjYW52YXMtY2FudmFzYXBpIiwiaXNzIjoiY2FudmFzLXMyc3Rva2VuIiwibmJmIjoxNzA2NzExNzk4LCJzdWIiOiJhNWQ0ZjU2NC0yZTM0LTQyN2EtODI1Ni03OGE2NTFhODc0ZTR-U1RBR0lOR35mMzBjN2JmNy1lNjhjLTRhNzUtOWFlNC05NmJjOTNkOGIyOGYifQ.xLriKo1jpzUBAc1wfGpLVeQ44Ewqncblby-wYE1vRu0'
     });
+    console.log('Camera Kit bootstrapped successfully');
 
+    // Step 2: Request camera permission and get media stream
+    console.log('Requesting camera access...');
     let mediaStream = await navigator.mediaDevices.getUserMedia({
       video: { width: 2160, height: 2160, facingMode: 'environment' }
     });
+    console.log('Camera access granted');
 
+    // Step 3: Create session and load lens
+    console.log('Creating session and loading lens...');
     const session = await cameraKit.createSession();
     const lens = await cameraKit.lensRepository.loadLens('20ef7516-0029-41be-a6b2-37a3602e56b6', 'fdd0879f-c570-490e-9dfc-cba0f122699f');
+    console.log('Lens loaded successfully');
+    
+    // Step 4: Apply lens with parameters
     await session.applyLens(lens, {
       launchParams: {
         greeting_text: `Hey ${rakhiData.brotherName}!`,
@@ -60881,17 +60931,20 @@ async function startCameraKit(rakhiData) {
         message: "Share this moment with your sibling on social media!"
       }
     });
+    console.log('Lens applied with parameters');
 
+    // Step 5: Set up source and rendering
     const source = createMediaStreamSource(mediaStream, { cameraType: 'back' });
     await session.setSource(source);
 
     // Set the render size based on the actual screen resolution
     session.source.setRenderSize(window.innerWidth * window.devicePixelRatio, window.innerHeight * window.devicePixelRatio);
+    console.log('Source configured, starting session...');
+    
     session.play();
 
-    // Define liveOutput correctly from the session output
+    // Step 6: Set up canvas rendering
     const liveOutput = session.output.live;
-
     const canvas = document.getElementById('canvas');
     if (canvas) {
       drawVideoToCanvas(liveOutput, canvas);
@@ -60899,9 +60952,14 @@ async function startCameraKit(rakhiData) {
       cameraContainer.appendChild(liveOutput);
     }
 
+    // Step 7: Set up capture button
     document.getElementById('captureButton').addEventListener('click', () => captureScreenshot(canvas));
+    
+    console.log('Camera Kit initialization completed successfully');
+    
   } catch (error) {
     console.error('Error initializing camera kit or session:', error);
+    throw error; // Re-throw to handle in calling function
   }
 }
 

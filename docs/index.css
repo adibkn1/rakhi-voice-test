@@ -494,3 +494,53 @@ input:focus::placeholder {
 #reRecordBtn:active {
   box-shadow: 0 4px 16px rgba(255,128,0,0.18);
 }
+
+/* Camera loading indicator */
+.camera-loading {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  color: white;
+  z-index: 150;
+}
+
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid rgba(255, 255, 255, 0.3);
+  border-top: 4px solid #ff8000;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 15px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.camera-loading p {
+  margin: 0;
+  font-size: 16px;
+  font-weight: bold;
+  text-align: center;
+}
+
+/* Audio player compact styling */
+#camera-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  max-width: 56.4vh;
+  background-color: #000; /* Black background to prevent white screen */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 10;
+}
