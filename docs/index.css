@@ -78,7 +78,7 @@ body, html {
 
 /* Form container positioning */
 #rakhiForm {
-  margin-top: 50%; /* Position the form 60% from the top of the screen */
+  margin-top: 50vh; /* Position the form 60% from the top of the screen */
   width: 100%;
   padding: 20px;
   max-width: 300px;
