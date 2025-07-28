@@ -21,7 +21,6 @@ body, html {
 .container {
   width: 100vw;
   height: 100%;
-  max-width: 56.4%;
   display: flex;
   justify-content: center;
   align-items: center;
@@ -80,7 +79,7 @@ body, html {
 /* Form container positioning */
 #rakhiForm {
   margin-top: 55vh; /* Position the form 60% from the top of the screen */
-  width: 56%;
+  width: 100%;
   padding: 20px;
   max-width: 300px;
   display: flex;
