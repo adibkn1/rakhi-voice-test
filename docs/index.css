@@ -20,8 +20,8 @@ body, html {
 /* General container styling */
 .container {
   width: 100vw;
-  height: 100vh;
-  max-width: 56.4vh;
+  height: 100%;
+  max-width: 56.4%;
   display: flex;
   justify-content: center;
   align-items: center;
@@ -349,7 +349,7 @@ input:focus::placeholder {
 /* Preview container styling */
 #preview-container {
   width: 100vw;
-  height: 100vh;
+  height: 100%;
   max-width: 56.4vh;
   position: absolute;
   top: 0;
