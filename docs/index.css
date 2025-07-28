@@ -332,7 +332,7 @@ input:focus::placeholder {
 /* Capture button styling */
 .capture-button {
   position: absolute;
-  bottom: 5%;
+  bottom: 15%; /* Moved higher from 5% to 15% */
   left: 50%;
   transform: translateX(-50%);
   width: 60px;
@@ -537,7 +537,6 @@ input:focus::placeholder {
   left: 0;
   width: 100vw;
   height: 100vh;
-  max-width: 56.4vh;
   background-color: #000; /* Black background to prevent white screen */
   display: flex;
   justify-content: center;
