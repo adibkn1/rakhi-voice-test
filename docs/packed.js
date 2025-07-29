@@ -58133,10 +58133,12 @@ function initializeAudio(rakhiData, receiverContainer, cameraContainer, playVoic
     function updateButtonIcon() {
       const playIcon = playVoiceBtn.querySelector('.material-icons');
       if (playIcon) {
-        if (audioHasPlayed && !isPlaying) {
-          playIcon.textContent = 'restart_alt'; // Restart icon
+        if (isPlaying) {
+          playIcon.textContent = 'pause_circle_filled'; // Pause icon when playing
+        } else if (audioHasPlayed && !isPlaying) {
+          playIcon.textContent = 'restart_alt'; // Restart icon when completed
         } else {
-          playIcon.textContent = 'play_circle_filled'; // Play icon
+          playIcon.textContent = 'play_circle_filled'; // Play icon initially
         }
       }
     }
@@ -58770,7 +58772,7 @@ document.addEventListener('DOMContentLoaded', () => {
       navigator.share({
         files: [file],
         title: 'Digital Rakhi',
-        text: 'Check out this cool digital Rakhi!',
+        text: 'Thanks for sending this lovely surprise — it truly made me smile. A very Happy Raksha Bandhan to you!',
       }).then(() => {
         // Track successful photo sharing
         posthog.capture('sharing_method_used', { method: 'photo_share', context: 'ar_photo' });

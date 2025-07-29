@@ -313,7 +313,7 @@ input:focus::placeholder {
   font-size: 1.8vh;
   font-family: 'Trajan';
   max-width: 100%;
-  line-height: 1;
+  line-height: 0.7;
   /* Allow proper text flow */
   white-space: normal;
   overflow: visible;

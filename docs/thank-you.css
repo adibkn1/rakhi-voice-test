@@ -53,7 +53,7 @@ body {
     color: #6D3900;
     border: .5px solid #6D3900;
     border-radius: 5px;
-    margin-top: 70vh;
+    margin-top: 80vh;
     text-decoration: none;
     transition: background-color 0.3s;
     font-family: 'Trajan', 'TRAJAN-BOLD', serif; /* Use TRAJAN font with fallback */
