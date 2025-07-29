@@ -1008,8 +1008,18 @@ async function startCameraKit(rakhiData) {
     console.log('Requesting camera access...');
     let mediaStream;
     try {
+      // Use window dimensions with reasonable constraints for better device compatibility
+      const videoWidth = Math.min(window.innerWidth, 1920);
+      const videoHeight = Math.min(window.innerHeight, 1920);
+      
+      console.log(`Requesting camera with resolution: ${videoWidth}x${videoHeight}`);
+      
       mediaStream = await navigator.mediaDevices.getUserMedia({
-        video: { width: 2160, height: 2160, facingMode: 'environment' }
+        video: { 
+          width: { ideal: videoWidth, max: 1920 },
+          height: { ideal: videoHeight, max: 1920 },
+          facingMode: 'environment'
+        }
       });
       console.log('Camera access granted');
       
@@ -1039,8 +1049,10 @@ async function startCameraKit(rakhiData) {
     await session.setSource(source);
 
     // Set the render size based on the actual screen resolution
-    session.source.setRenderSize(window.innerWidth * window.devicePixelRatio, window.innerHeight * window.devicePixelRatio);
-    console.log('Source configured, starting session...');
+    const renderWidth = Math.min(window.innerWidth, 1920);
+    const renderHeight = Math.min(window.innerHeight, 1920);
+    session.source.setRenderSize(renderWidth, renderHeight);
+    console.log(`Set render size to: ${renderWidth}x${renderHeight}`);
     
     session.play();
 
@@ -1071,8 +1083,9 @@ function drawVideoToCanvas(videoElement, canvas) {
   logo.src = 'Images/logo.png'; // Path to your logo
 
   // Set the canvas dimensions to match the video
-  canvas.width = window.innerWidth * window.devicePixelRatio;
-  canvas.height = window.innerHeight * window.devicePixelRatio;
+  canvas.width = Math.min(window.innerWidth, 1920);
+  canvas.height = Math.min(window.innerHeight, 1920);
+  console.log(`Canvas size set to: ${canvas.width}x${canvas.height}`);
 
   function drawFrame() {
     // Clear the canvas before drawing
