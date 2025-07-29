@@ -310,10 +310,10 @@ input:focus::placeholder {
 
 .greeting-title {
   color: #4D9952;
-  font-size: 2vh;
+  font-size: 1.8vh;
   font-family: 'Trajan';
   max-width: 100%;
-  line-height: 1.2;
+  line-height: 1;
   /* Allow proper text flow */
   white-space: normal;
   overflow: visible;

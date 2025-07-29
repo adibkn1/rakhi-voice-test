@@ -58603,49 +58603,85 @@ async function startCameraKit(rakhiData) {
   try {
     console.log('Starting Camera Kit initialization...');
     
-    // Step 1: Bootstrap Camera Kit
+    // Step 1: Bootstrap Camera Kit with timeout
     console.log('Bootstrapping Camera Kit...');
-    const cameraKit = await bootstrapCameraKit({
-      apiToken: 'eyJhbGciOiJIUzI1NiIsImtpZCI6IkNhbnZhc1MyU0hNQUNQcm9kIiwidHlwIjoiSldUIn0.eyJhdWQiOiJjYW52YXMtY2FudmFzYXBpIiwiaXNzIjoiY2FudmFzLXMyc3Rva2VuIiwibmJmIjoxNzA2NzExNzk4LCJzdWIiOiJhNWQ0ZjU2NC0yZTM0LTQyN2EtODI1Ni03OGE2NTFhODc0ZTR-U1RBR0lOR35mMzBjN2JmNy1lNjhjLTRhNzUtOWFlNC05NmJjOTNkOGIyOGYifQ.xLriKo1jpzUBAc1wfGpLVeQ44Ewqncblby-wYE1vRu0'
-    });
+    const cameraKit = await Promise.race([
+      bootstrapCameraKit({
+        apiToken: 'eyJhbGciOiJIUzI1NiIsImtpZCI6IkNhbnZhc1MyU0hNQUNQcm9kIiwidHlwIjoiSldUIn0.eyJhdWQiOiJjYW52YXMtY2FudmFzYXBpIiwiaXNzIjoiY2FudmFzLXMyc3Rva2VuIiwibmJmIjoxNzA2NzExNzk4LCJzdWIiOiJhNWQ0ZjU2NC0yZTM0LTQyN2EtODI1Ni03OGE2NTFhODc0ZTR-U1RBR0lOR35mMzBjN2JmNy1lNjhjLTRhNzUtOWFlNC05NmJjOTNkOGIyOGYifQ.xLriKo1jpzUBAc1wfGpLVeQ44Ewqncblby-wYE1vRu0'
+      }),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('Camera Kit bootstrap timeout')), 10000))
+    ]);
     console.log('Camera Kit bootstrapped successfully');
 
-    // Step 2: Request camera permission and get media stream
+    // Step 2: Request camera permission with fallback configurations
     console.log('Requesting camera access...');
     let mediaStream;
-    try {
-      mediaStream = await navigator.mediaDevices.getUserMedia({
-        video: { width: 2160, height: 2160, facingMode: 'environment' }
-      });
-      console.log('Camera access granted');
-      
-    } catch (permissionError) {
-      console.error('Camera permission denied:', permissionError);
-      throw permissionError;
+    
+    // Try multiple camera configurations in order of preference
+    const cameraConfigs = [
+      // Try back camera with moderate resolution
+      { video: { width: 1280, height: 1280, facingMode: 'environment' } },
+      // Fallback to front camera with moderate resolution
+      { video: { width: 1280, height: 1280, facingMode: 'user' } },
+      // Fallback to any camera with lower resolution
+      { video: { width: 720, height: 720 } },
+      // Last resort - any available camera
+      { video: true }
+    ];
+    
+    let cameraError = null;
+    for (let i = 0; i < cameraConfigs.length; i++) {
+      try {
+        console.log(`Trying camera config ${i + 1}:`, cameraConfigs[i]);
+        mediaStream = await navigator.mediaDevices.getUserMedia(cameraConfigs[i]);
+        console.log('Camera access granted with config:', cameraConfigs[i]);
+        break;
+      } catch (error) {
+        console.warn(`Camera config ${i + 1} failed:`, error);
+        cameraError = error;
+        if (i === cameraConfigs.length - 1) {
+          throw new Error(`All camera configurations failed. Last error: ${error.message}`);
+        }
+      }
     }
 
-    // Step 3: Create session and load lens
+    // Step 3: Create session and load lens with timeout
     console.log('Creating session and loading lens...');
-    const session = await cameraKit.createSession();
-    const lens = await cameraKit.lensRepository.loadLens('20ef7516-0029-41be-a6b2-37a3602e56b6', 'fdd0879f-c570-490e-9dfc-cba0f122699f');
+    const session = await Promise.race([
+      cameraKit.createSession(),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('Session creation timeout')), 8000))
+    ]);
+    
+    const lens = await Promise.race([
+      cameraKit.lensRepository.loadLens('20ef7516-0029-41be-a6b2-37a3602e56b6', 'fdd0879f-c570-490e-9dfc-cba0f122699f'),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('Lens loading timeout')), 10000))
+    ]);
     console.log('Lens loaded successfully');
     
-    // Step 4: Apply lens with parameters
-    await session.applyLens(lens, {
-      launchParams: {
-        greeting_text: `Hey ${rakhiData.brotherName}!`,
-        brother_name: `${rakhiData.brotherName}`,
-        message: "Share this moment with your sibling on social media!"
-      }
-    });
+    // Step 4: Apply lens with parameters and timeout
+    await Promise.race([
+      session.applyLens(lens, {
+        launchParams: {
+          greeting_text: `Hey ${rakhiData.brotherName}!`,
+          brother_name: `${rakhiData.brotherName}`,
+          message: "Share this moment with your sibling on social media!"
+        }
+      }),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('Lens apply timeout')), 5000))
+    ]);
     console.log('Lens applied with parameters');
 
-    // Step 5: Set up source and rendering
+    // Step 5: Set up source and rendering with timeout
     const source = createMediaStreamSource(mediaStream, { cameraType: 'back' });
-    await session.setSource(source);
+    await Promise.race([
+      session.setSource(source),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('Set source timeout')), 5000))
+    ]);
 
-    // Set the render size based on the actual screen resolution
-    session.source.setRenderSize(window.innerWidth * window.devicePixelRatio, window.innerHeight * window.devicePixelRatio);
+    // Set the render size based on the actual screen resolution with reasonable limits
+    const maxWidth = Math.min(window.innerWidth * window.devicePixelRatio, 1920);
+    const maxHeight = Math.min(window.innerHeight * window.devicePixelRatio, 1920);
+    session.source.setRenderSize(maxWidth, maxHeight);
     console.log('Source configured, starting session...');
     
     session.play();
@@ -58666,8 +58702,68 @@ async function startCameraKit(rakhiData) {
     
   } catch (error) {
     console.error('Error initializing camera kit or session:', error);
+    
+    // Show user-friendly error message based on error type
+    let errorMessage = 'Camera initialization failed. ';
+    if (error.message.includes('Permission denied') || error.message.includes('NotAllowedError')) {
+      errorMessage += 'Please allow camera access and try again.';
+    } else if (error.message.includes('timeout')) {
+      errorMessage += 'The camera is taking too long to load. Please try again.';
+    } else if (error.message.includes('camera')) {
+      errorMessage += 'Your device camera might not be supported. Please try a different device.';
+    } else {
+      errorMessage += 'Please try again or use a different device.';
+    }
+    
+    // Hide loading indicator
+    const cameraLoading = document.getElementById('camera-loading');
+    if (cameraLoading) {
+      cameraLoading.style.display = 'none';
+    }
+    
+    // Show error message to user
+    showCameraError(errorMessage);
+    
     throw error; // Re-throw to handle in calling function
   }
+}
+
+// Function to show camera error to user
+function showCameraError(message) {
+  const cameraContainer = document.getElementById('camera-container');
+  
+  // Create error message element
+  const errorDiv = document.createElement('div');
+  errorDiv.style.cssText = `
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(0,0,0,0.8);
+    color: white;
+    padding: 20px;
+    border-radius: 10px;
+    text-align: center;
+    z-index: 200;
+    max-width: 80%;
+    font-size: 16px;
+    line-height: 1.4;
+  `;
+  
+  errorDiv.innerHTML = `
+    <div style="margin-bottom: 15px;">${message}</div>
+    <button onclick="location.reload()" style="
+      background: #ff8000;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 14px;
+    ">Try Again</button>
+  `;
+  
+  cameraContainer.appendChild(errorDiv);
 }
 
 function drawVideoToCanvas(videoElement, canvas) {
