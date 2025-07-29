@@ -313,12 +313,12 @@ input:focus::placeholder {
   font-size: 2vh;
   font-family: 'Trajan';
   max-width: 100%;
-  line-height: 0.8;
-  /* Force single line */
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  /* Remove multi-line properties */
+  line-height: 1.2;
+  /* Allow proper text flow */
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  /* Keep as block element */
   display: block;
 }
 
