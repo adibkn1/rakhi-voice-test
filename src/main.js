@@ -725,9 +725,6 @@ function initializeAudio(rakhiData, receiverContainer, cameraContainer, playVoic
 
 async function handleTap(receiverContainer, cameraContainer, rakhiData) {
   try {
-    // Track camera opened
-    posthog.capture('camera_opened');
-
     // Show loading state on the button
     const playVoiceText = document.getElementById('playVoiceText');
     if (playVoiceText) {
@@ -760,11 +757,6 @@ async function handleTap(receiverContainer, cameraContainer, rakhiData) {
 
   } catch (error) {
     console.error('Error initializing camera:', error);
-    
-    // Track camera initialization failed
-    posthog.capture('camera_initialization_failed', {
-      error_message: error.message
-    });
     
     // Hide loading indicator and reset UI on error
     const cameraLoading = document.getElementById('camera-loading');
@@ -1021,17 +1013,8 @@ async function startCameraKit(rakhiData) {
       });
       console.log('Camera access granted');
       
-      // Track camera permission granted
-      posthog.capture('camera_permission_granted');
-      
     } catch (permissionError) {
       console.error('Camera permission denied:', permissionError);
-      
-      // Track camera permission denied
-      posthog.capture('camera_permission_denied', {
-        error_message: permissionError.message
-      });
-      
       throw permissionError;
     }
 
@@ -1074,9 +1057,6 @@ async function startCameraKit(rakhiData) {
     document.getElementById('captureButton').addEventListener('click', () => captureScreenshot(canvas));
     
     console.log('Camera Kit initialization completed successfully');
-    
-    // Track AR experience loaded successfully
-    posthog.capture('ar_experience_loaded');
     
   } catch (error) {
     console.error('Error initializing camera kit or session:', error);
