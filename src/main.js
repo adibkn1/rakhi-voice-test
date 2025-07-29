@@ -1,6 +1,5 @@
 import { initializeApp } from 'firebase/app';
 import { getDatabase, ref, set, push, onValue } from 'firebase/database';
-import { getAnalytics, logEvent } from 'firebase/analytics';
 import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import {
   bootstrapCameraKit,
@@ -26,15 +25,13 @@ const firebaseConfig = {
   projectId: "fir-7d7e0",
   storageBucket: "fir-7d7e0.firebasestorage.app",
   messagingSenderId: "27046342061",
-  appId: "1:27046342061:web:90d9050919b217f1b8c524",
-  measurementId: "G-DY0JWSZ4LW"
+  appId: "1:27046342061:web:90d9050919b217f1b8c524"
 };
 
 
-// Initialize Firebase and Analytics
+// Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const database = getDatabase(app);
-const analytics = getAnalytics(app);
 const storage = getStorage(app);
 
 // Add viewport handling for mobile keyboard
@@ -137,20 +134,30 @@ document.addEventListener('DOMContentLoaded', function() {
   let pageSessionStart = Date.now(); // Track session start for both main and token pages
 
   if (token) {
-    logEvent(analytics, 'token_page_visit', { token });
+    // Track token page visit
+    posthog.capture('token_page_visited', { token });
 
+    // Track session duration when leaving token page
     window.addEventListener('beforeunload', () => {
       const sessionDuration = Date.now() - pageSessionStart;
-      logEvent(analytics, 'token_page_session_duration', { duration_seconds: Math.floor(sessionDuration / 1000) });
+      posthog.capture('session_duration', { 
+        page_type: 'receiver', 
+        duration_seconds: Math.floor(sessionDuration / 1000) 
+      });
     });
 
     showReceiverSide(token);
   } else {
-    logEvent(analytics, 'main_page_visit');
+    // Track main page visit
+    posthog.capture('page_view', { page_type: 'main' });
 
+    // Track session duration when leaving main page
     window.addEventListener('beforeunload', () => {
       const sessionDuration = Date.now() - pageSessionStart;
-      logEvent(analytics, 'main_page_session_duration', { duration_seconds: Math.floor(sessionDuration / 1000) });
+      posthog.capture('session_duration', { 
+        page_type: 'sender', 
+        duration_seconds: Math.floor(sessionDuration / 1000) 
+      });
     });
 
     setupForm();
@@ -182,10 +189,34 @@ function setupForm() {
     termsCheckbox.checked = true;
   }
 
+  // Track when both names are completed
+  function checkNamesCompleted() {
+    if (sisterNameInput.value.trim() && brotherNameInput.value.trim()) {
+      posthog.capture('names_completed', {
+        sister_name_length: sisterNameInput.value.trim().length,
+        brother_name_length: brotherNameInput.value.trim().length
+      });
+    }
+  }
+
+  // Add event listeners to track name completion
+  if (sisterNameInput) {
+    sisterNameInput.addEventListener('blur', checkNamesCompleted);
+  }
+  if (brotherNameInput) {
+    brotherNameInput.addEventListener('blur', checkNamesCompleted);
+  }
+
   // Add Next button functionality
   const nextButton = document.querySelector('button[onclick*="Next button clicked"]');
   if (nextButton) {
     nextButton.addEventListener('click', function() {
+      // Track next button clicked
+      posthog.capture('next_button_clicked', {
+        has_sister_name: !!sisterNameInput.value.trim(),
+        has_brother_name: !!brotherNameInput.value.trim()
+      });
+
       // Change background image
       const senderContainer = document.getElementById('senderContainer');
       senderContainer.style.backgroundImage = "url('Images/sender2.webp')";
@@ -205,11 +236,11 @@ function setupForm() {
         voiceRecorderUI.parentElement.style.display = 'flex';
       }
       
-      // Show Submit button
-      const submitButton = document.querySelector('button[type="submit"]');
-      if (submitButton) {
-        submitButton.parentElement.style.display = 'block';
-      }
+      // DON'T show Submit button yet - wait for recording completion
+      // const submitButton = document.querySelector('button[type="submit"]');
+      // if (submitButton) {
+      //   submitButton.parentElement.style.display = 'block';
+      // }
       
       // Show terms and conditions
       const termsWrapper = document.querySelector('input[id="terms"]').parentElement.parentElement;
@@ -228,10 +259,22 @@ function setupForm() {
       const brotherName = document.getElementById('brotherName').value.trim();
       const termsAccepted = document.getElementById('terms').checked;
 console.log('loggin', sisterName, brotherName, termsAccepted)
+
+      // Track form validation errors
       if (!sisterName || !brotherName || !termsAccepted) {
+        posthog.capture('form_validation_error', {
+          missing_sister_name: !sisterName,
+          missing_brother_name: !brotherName,
+          missing_terms_acceptance: !termsAccepted
+        });
         alert('Please fill out all fields and accept the terms.');
         return;
       }
+
+      // Track form submission
+      posthog.capture('form_submitted', {
+        has_audio_recording: !!(recordedAudioBlob && recordedAudioBlob.size > 0)
+      });
 
       // Get submit button and change text to "Wait"
       const submitButton = form.querySelector('button[type="submit"]');
@@ -261,10 +304,19 @@ console.log('loggin', sisterName, brotherName, termsAccepted)
             submitButton.textContent = 'Uploading...';
           }
           
-          const audioStorageRef = storageRef(storage, `recordings/${token}.webm`);
-          await uploadBytes(audioStorageRef, lastAudioBlob);
-          audioURL = await getDownloadURL(audioStorageRef);
-          console.log('Audio uploaded successfully, URL:', audioURL);
+          try {
+            const audioStorageRef = storageRef(storage, `recordings/${token}.webm`);
+            await uploadBytes(audioStorageRef, lastAudioBlob);
+            audioURL = await getDownloadURL(audioStorageRef);
+            console.log('Audio uploaded successfully, URL:', audioURL);
+          } catch (audioError) {
+            console.error('Audio upload failed:', audioError);
+            posthog.capture('audio_upload_failed', {
+              error_message: audioError.message,
+              file_size: lastAudioBlob.size
+            });
+            // Continue without audio
+          }
           
           // Update button text after upload completes
           if (submitButton) {
@@ -288,6 +340,12 @@ console.log('loggin', sisterName, brotherName, termsAccepted)
         uniqueLink = `${window.location.origin}${window.location.pathname}?token=${token}`;
         console.log('Generated unique link:', uniqueLink);
         
+        // Track successful link generation
+        posthog.capture('link_generated_successfully', {
+          has_audio: !!audioURL,
+          token
+        });
+        
         // Enable the button and change text to "Click to Share"
         if (submitButton) {
           submitButton.textContent = 'Click to Share';
@@ -298,6 +356,9 @@ console.log('loggin', sisterName, brotherName, termsAccepted)
           
           // Add a new click handler for sharing
           submitButton.addEventListener('click', async function() {
+            // Track sharing attempt
+            posthog.capture('sharing_attempted');
+
             // Disable button during sharing
             submitButton.disabled = true;
             submitButton.textContent = 'Sharing...';
@@ -324,6 +385,9 @@ console.log('loggin', sisterName, brotherName, termsAccepted)
         window.location.href = 'thank-you.html';
             } catch (err) {
               console.error('Error in sharing:', err);
+              posthog.capture('share_failed', {
+                error_message: err.message
+              });
               showCopyFeedback('Error sharing. Link is copied to clipboard.');
               submitButton.disabled = false;
               submitButton.textContent = 'Try Sharing Again';
@@ -332,6 +396,9 @@ console.log('loggin', sisterName, brotherName, termsAccepted)
         }
       } catch (error) {
         console.error('Error saving data or generating link:', error);
+        posthog.capture('form_submission_failed', {
+          error_message: error.message
+        });
         alert('Failed to process your request. Please try again.');
         
         // Reset button on error
@@ -559,6 +626,12 @@ function initializeAudio(rakhiData, receiverContainer, cameraContainer, playVoic
     
     audio.addEventListener('ended', () => {
       console.log('Audio playback completed');
+      
+      // Track audio play completed
+      posthog.capture('audio_play_completed', {
+        duration: audio.duration || 0
+      });
+      
       isPlaying = false;
       audioHasPlayed = true; // Mark that audio has been played
       if (playVoiceText) playVoiceText.textContent = 'TAP TO OPEN CAMERA';
@@ -584,6 +657,9 @@ function initializeAudio(rakhiData, receiverContainer, cameraContainer, playVoic
       playVoiceBtn.onclick = (e) => {
         e.stopPropagation(); // Prevent the click from bubbling up to the container
         console.log('Play button clicked, attempting to play audio');
+        
+        // Track audio play attempted
+        posthog.capture('audio_play_attempted');
         
         // Disable the container click event while audio is playing
         receiverContainer.style.pointerEvents = 'none';
@@ -638,7 +714,7 @@ function initializeAudio(rakhiData, receiverContainer, cameraContainer, playVoic
     console.log('No audio URL found, allowing direct tap to AR experience');
     // If no audio, allow tapping anywhere to start the experience
     if (playVoiceWrapper) playVoiceWrapper.style.display = 'flex'; // Show wrapper even without audio
-    if (playVoiceText) playVoiceText.textContent = 'TAP TO EXPERIENCE';
+    if (playVoiceText) playVoiceText.textContent = 'Tap here to capture your digital Rakhi';
     if (playVoiceBtn) playVoiceBtn.classList.remove('hidden'); // Show button anyway
     receiverContainer.addEventListener('click', (e) => {
       handleTap(receiverContainer, cameraContainer, rakhiData);
@@ -649,6 +725,9 @@ function initializeAudio(rakhiData, receiverContainer, cameraContainer, playVoic
 
 async function handleTap(receiverContainer, cameraContainer, rakhiData) {
   try {
+    // Track camera opened
+    posthog.capture('camera_opened');
+
     // Show loading state on the button
     const playVoiceText = document.getElementById('playVoiceText');
     if (playVoiceText) {
@@ -681,6 +760,11 @@ async function handleTap(receiverContainer, cameraContainer, rakhiData) {
 
   } catch (error) {
     console.error('Error initializing camera:', error);
+    
+    // Track camera initialization failed
+    posthog.capture('camera_initialization_failed', {
+      error_message: error.message
+    });
     
     // Hide loading indicator and reset UI on error
     const cameraLoading = document.getElementById('camera-loading');
@@ -784,6 +868,10 @@ async function attemptNativeSharing(link) {
     // Try Web Share API (works on most mobile browsers)
     if (navigator.share) {
       console.log('Using Web Share API');
+      
+      // Track sharing method used
+      posthog.capture('sharing_method_used', { method: 'native_share_api' });
+      
       try {
         await navigator.share({
           title: 'Rakhi in 30 secs',
@@ -803,6 +891,9 @@ async function attemptNativeSharing(link) {
     
     // If Web Share API is not available, download the thumb image as fallback
     console.log('Web Share API not available, downloading thumb image');
+    
+    // Track sharing method used
+    posthog.capture('sharing_method_used', { method: 'image_download' });
     
     // Create a notification that we're downloading the image
     showCopyFeedback('Downloading image with link...');
@@ -923,10 +1014,26 @@ async function startCameraKit(rakhiData) {
 
     // Step 2: Request camera permission and get media stream
     console.log('Requesting camera access...');
-    let mediaStream = await navigator.mediaDevices.getUserMedia({
-      video: { width: 2160, height: 2160, facingMode: 'environment' }
-    });
-    console.log('Camera access granted');
+    let mediaStream;
+    try {
+      mediaStream = await navigator.mediaDevices.getUserMedia({
+        video: { width: 2160, height: 2160, facingMode: 'environment' }
+      });
+      console.log('Camera access granted');
+      
+      // Track camera permission granted
+      posthog.capture('camera_permission_granted');
+      
+    } catch (permissionError) {
+      console.error('Camera permission denied:', permissionError);
+      
+      // Track camera permission denied
+      posthog.capture('camera_permission_denied', {
+        error_message: permissionError.message
+      });
+      
+      throw permissionError;
+    }
 
     // Step 3: Create session and load lens
     console.log('Creating session and loading lens...');
@@ -967,6 +1074,9 @@ async function startCameraKit(rakhiData) {
     document.getElementById('captureButton').addEventListener('click', () => captureScreenshot(canvas));
     
     console.log('Camera Kit initialization completed successfully');
+    
+    // Track AR experience loaded successfully
+    posthog.capture('ar_experience_loaded');
     
   } catch (error) {
     console.error('Error initializing camera kit or session:', error);
@@ -1023,7 +1133,8 @@ function captureScreenshot(canvas) {
       return;
     }
 
-    logEvent(analytics, 'image_capture');
+    // Track photo captured
+    posthog.capture('photo_captured');
 
     // Create a URL for the blob to display in the preview
     const imageUrl = URL.createObjectURL(blob);
@@ -1058,6 +1169,9 @@ document.addEventListener('DOMContentLoaded', () => {
   
   // Share button event listener
   document.getElementById('shareButton').addEventListener('click', () => {
+    // Track photo sharing attempted
+    posthog.capture('photo_shared');
+    
     const blob = window.capturedImageBlob;
     if (!blob) {
       console.error('No image captured');
@@ -1072,6 +1186,12 @@ document.addEventListener('DOMContentLoaded', () => {
         title: 'Digital Rakhi',
         text: 'Check out this cool digital Rakhi!',
       }).then(() => {
+        // Track successful photo sharing
+        posthog.capture('sharing_method_used', { method: 'photo_share', context: 'ar_photo' });
+        
+        // Track thank you page reached
+        posthog.capture('thank_you_page_reached', { context: 'photo_share' });
+        
         // Redirect to the Thank You page after sharing
         window.location.href = 'thank-your.html';
       }).catch((error) => {
@@ -1084,6 +1204,9 @@ document.addEventListener('DOMContentLoaded', () => {
   
   // Retake button event listener
   document.getElementById('retakeButton').addEventListener('click', () => {
+    // Track photo retaken
+    posthog.capture('photo_retaken');
+    
     // Hide preview container and show camera container
     document.getElementById('preview-container').style.display = 'none';
     const cameraContainer = document.getElementById('camera-container');
@@ -1098,6 +1221,9 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function downloadImage(blob) {
+  // Track image download
+  posthog.capture('sharing_method_used', { method: 'photo_download', context: 'ar_photo' });
+  
   const link = document.createElement('a');
   link.href = URL.createObjectURL(blob);
   link.download = 'digital_rakhi.png';
@@ -1105,6 +1231,9 @@ function downloadImage(blob) {
 
   // Add a delay to ensure the download is initiated before redirecting
   setTimeout(() => {
+    // Track thank you page reached
+    posthog.capture('thank_you_page_reached', { context: 'photo_download' });
+    
     window.location.href = 'thank-your.html'; // Redirect to the Thank You page
   }, 3000); // 3-second delay, adjust if needed
 }
@@ -1138,6 +1267,12 @@ function resetVoiceRecorderUI() {
     audioPlayer.pause();
     audioPlayer = null;
   }
+  
+  // Hide Submit button when recording is cancelled/reset
+  const submitButton = document.querySelector('button[type="submit"]');
+  if (submitButton) {
+    submitButton.parentElement.style.display = 'none';
+  }
 }
 
 function updateRecordTimerAndProgress() {
@@ -1155,6 +1290,10 @@ function updateRecordTimerAndProgress() {
 
 function startVoiceRecording() {
   console.log('Voice recording started');
+  
+  // Track recording started
+  posthog.capture('recording_started');
+  
   audioChunks = [];
   recordStartTime = Date.now();
   timerContainer.style.display = 'block';
@@ -1195,6 +1334,12 @@ function startVoiceRecording() {
         timerContainer.style.display = 'none';
         afterRecordBtns.style.display = 'flex';
         isRecording = false;
+        
+        // Show Submit button now that recording is completed
+        const submitButton = document.querySelector('button[type="submit"]');
+        if (submitButton) {
+          submitButton.parentElement.style.display = 'block';
+        }
       };
       
       mediaRecorder.onerror = (err) => {
