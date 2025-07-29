@@ -1028,7 +1028,7 @@ async function startCameraKit(rakhiData) {
         video: {
           facingMode: 'environment',
           width: { ideal: 1280 },
-          height: { ideal: 720 }
+          height: { ideal: 1280 }
         }
       };
       
@@ -1079,12 +1079,12 @@ async function startCameraKit(rakhiData) {
       // Portrait mode - common for phones
       source.setRenderSize(
         Math.round(Math.min(window.innerWidth * maxScale, 1080)),
-        Math.round(Math.min(window.innerHeight * maxScale, 1920))
+        Math.round(Math.min(window.innerHeight * maxScale, 1080))
       );
     } else {
       // Landscape mode
       source.setRenderSize(
-        Math.round(Math.min(window.innerWidth * maxScale, 1920)),
+        Math.round(Math.min(window.innerWidth * maxScale, 1080)),
         Math.round(Math.min(window.innerHeight * maxScale, 1080))
       );
     }

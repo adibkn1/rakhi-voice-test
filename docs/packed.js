@@ -58634,7 +58634,7 @@ async function startCameraKit(rakhiData) {
         video: {
           facingMode: 'environment',
           width: { ideal: 1280 },
-          height: { ideal: 720 }
+          height: { ideal: 1280 }
         }
       };
       
@@ -58674,22 +58674,31 @@ async function startCameraKit(rakhiData) {
     await session.setSource(source);
 
     // Set render size based on device capabilities
-    // Use a smaller render size for better performance
-    // Camera Kit render size sets the resolution at which Lenses are rendered
-    // This is separate from the display size which is controlled by CSS
+    // Use a more reasonable resolution based on screen size
     const isPortrait = window.innerHeight > window.innerWidth;
+    const devicePixelRatio = window.devicePixelRatio || 1;
+    
+    // Limit maximum resolution based on device pixel ratio
+    const maxScale = Math.min(devicePixelRatio, 2); // Cap at 2x for better performance
     
     if (isPortrait) {
       // Portrait mode - common for phones
-      // Use smaller render sizes (480x640) for better performance
-      source.setRenderSize(480, 640);
-      console.log('Set portrait render size: 480x640');
+      source.setRenderSize(
+        Math.round(Math.min(window.innerWidth * maxScale, 1080)),
+        Math.round(Math.min(window.innerHeight * maxScale, 1080))
+      );
     } else {
       // Landscape mode
-      // Use smaller render sizes (640x480) for better performance
-      source.setRenderSize(640, 480);
-      console.log('Set landscape render size: 640x480');
+      source.setRenderSize(
+        Math.round(Math.min(window.innerWidth * maxScale, 1080)),
+        Math.round(Math.min(window.innerHeight * maxScale, 1080))
+      );
     }
+    
+    console.log('Source configured with render size:', 
+      Math.round(window.innerWidth * maxScale), 
+      Math.round(window.innerHeight * maxScale)
+    );
     
     // Start the session
     session.play();
@@ -58723,14 +58732,12 @@ function drawVideoToCanvas(videoElement, canvas) {
   const logo = new Image();
   logo.crossOrigin = "anonymous"; // Avoid CORS issues
   
-  // Set canvas display size via CSS (this doesn't affect render resolution)
-  canvas.style.width = '100%';
-  canvas.style.height = '100%';
+  // Set reasonable canvas dimensions that work across devices
+  const devicePixelRatio = window.devicePixelRatio || 1;
+  const maxScale = Math.min(devicePixelRatio, 2); // Cap at 2x for better performance
   
-  // Set internal canvas dimensions to match the render size (smaller for better performance)
-  // This is the actual resolution the canvas will render at
-  canvas.width = 640;
-  canvas.height = 480;
+  canvas.width = Math.round(window.innerWidth * maxScale);
+  canvas.height = Math.round(window.innerHeight * maxScale);
   
   // Flag to track if logo is loaded
   let logoLoaded = false;
