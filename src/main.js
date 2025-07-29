@@ -731,64 +731,49 @@ async function handleTap(receiverContainer, cameraContainer, rakhiData) {
       playVoiceText.textContent = 'Loading...';
     }
 
-    // Show camera loading indicator first, but keep camera container hidden until initialization succeeds
+    // Show camera container immediately with loading indicator
     const cameraLoading = document.getElementById('camera-loading');
     if (cameraLoading) {
       cameraLoading.style.display = 'flex';
     }
     
-    // Prepare camera container but keep it invisible until camera is ready
     cameraContainer.style.display = 'flex';
-    cameraContainer.style.opacity = '0';
     cameraContainer.style.backgroundColor = '#000'; // Set black background to avoid white screen
-    
-    // Fade out receiver container
     receiverContainer.style.opacity = 0;
     
-    // Hide receiver container after fade out
     setTimeout(() => {
       receiverContainer.style.display = 'none';
-    }, 500);
+    }, 500); // Reduced timeout
 
     // Initialize camera kit (this takes time)
     await startCameraKit(rakhiData);
 
-    // If we got here, camera initialization was successful
-    
-    // Hide loading indicator
+    // Hide loading indicator after initialization
     if (cameraLoading) {
       cameraLoading.style.display = 'none';
     }
     
-    // Show camera container with fade in
-    cameraContainer.style.opacity = '1';
-    cameraContainer.style.transition = 'opacity 0.5s ease-in-out';
+    cameraContainer.style.opacity = 1;
 
   } catch (error) {
     console.error('Error initializing camera:', error);
     
-    // Hide loading indicator
+    // Hide loading indicator and reset UI on error
     const cameraLoading = document.getElementById('camera-loading');
     if (cameraLoading) {
       cameraLoading.style.display = 'none';
     }
     
-    // Hide camera container on error
-    cameraContainer.style.display = 'none';
-    
-    // Show receiver container again
-    receiverContainer.style.display = 'flex';
-    receiverContainer.style.opacity = '1';
-    receiverContainer.style.transition = 'opacity 0.5s ease-in-out';
-    
     // Reset the text if there's an error
     const playVoiceText = document.getElementById('playVoiceText');
     if (playVoiceText) {
-      playVoiceText.textContent = 'Camera not available. Tap to try again.';
+      playVoiceText.textContent = 'TAP TO LISTEN';
     }
     
-    // Show error message to user
-    showCopyFeedback('Camera access failed. Please check permissions and try again.');
+    // Hide camera container and show receiver container again
+    cameraContainer.style.display = 'none';
+    receiverContainer.style.display = 'flex';
+    receiverContainer.style.opacity = 1;
   }
 }
 
@@ -1019,21 +1004,13 @@ async function startCameraKit(rakhiData) {
     });
     console.log('Camera Kit bootstrapped successfully');
 
-    // Step 2: Request camera permission and get media stream with flexible constraints
+    // Step 2: Request camera permission and get media stream
     console.log('Requesting camera access...');
     let mediaStream;
     try {
-      // First try with ideal resolution that works on most devices
-      const constraints = {
-        video: {
-          facingMode: 'environment',
-          width: { ideal: 1280 },
-          height: { ideal: 1280 }
-        }
-      };
-      
-      console.log('Requesting camera with constraints:', constraints);
-      mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
+      mediaStream = await navigator.mediaDevices.getUserMedia({
+        video: { width: 1080, height: 1080, facingMode: 'environment' }
+      });
       console.log('Camera access granted');
       
     } catch (permissionError) {
@@ -1044,12 +1021,6 @@ async function startCameraKit(rakhiData) {
     // Step 3: Create session and load lens
     console.log('Creating session and loading lens...');
     const session = await cameraKit.createSession();
-    
-    // Add error event listener to help with debugging
-    session.events.addEventListener("error", (event) => {
-      console.error("Camera Kit session error:", event.detail);
-    });
-    
     const lens = await cameraKit.lensRepository.loadLens('20ef7516-0029-41be-a6b2-37a3602e56b6', 'fdd0879f-c570-490e-9dfc-cba0f122699f');
     console.log('Lens loaded successfully');
     
@@ -1063,48 +1034,22 @@ async function startCameraKit(rakhiData) {
     });
     console.log('Lens applied with parameters');
 
-    // Step 5: Set up source and rendering with appropriate size
+    // Step 5: Set up source and rendering
     const source = createMediaStreamSource(mediaStream, { cameraType: 'back' });
     await session.setSource(source);
 
-    // Set render size based on device capabilities
-    // Use a more reasonable resolution based on screen size
-    const isPortrait = window.innerHeight > window.innerWidth;
-    const devicePixelRatio = window.devicePixelRatio || 1;
+    // Set the render size based on the actual screen resolution
+    session.source.setRenderSize(window.innerWidth * window.devicePixelRatio, window.innerHeight * window.devicePixelRatio);
+    console.log('Source configured, starting session...');
     
-    // Limit maximum resolution based on device pixel ratio
-    const maxScale = Math.min(devicePixelRatio, 2); // Cap at 2x for better performance
-    
-    if (isPortrait) {
-      // Portrait mode - common for phones
-      source.setRenderSize(
-        Math.round(Math.min(window.innerWidth * maxScale, 1080)),
-        Math.round(Math.min(window.innerHeight * maxScale, 1080))
-      );
-    } else {
-      // Landscape mode
-      source.setRenderSize(
-        Math.round(Math.min(window.innerWidth * maxScale, 1080)),
-        Math.round(Math.min(window.innerHeight * maxScale, 1080))
-      );
-    }
-    
-    console.log('Source configured with render size:', 
-      Math.round(window.innerWidth * maxScale), 
-      Math.round(window.innerHeight * maxScale)
-    );
-    
-    // Start the session
     session.play();
 
     // Step 6: Set up canvas rendering
     const liveOutput = session.output.live;
     const canvas = document.getElementById('canvas');
     if (canvas) {
-      // Make sure canvas exists before drawing to it
       drawVideoToCanvas(liveOutput, canvas);
     } else {
-      // Fallback to direct output
       cameraContainer.appendChild(liveOutput);
     }
 
@@ -1122,80 +1067,37 @@ async function startCameraKit(rakhiData) {
 function drawVideoToCanvas(videoElement, canvas) {
   const context = canvas.getContext('2d');
 
-  // Create logo image and wait for it to load before starting drawing
   const logo = new Image();
-  logo.crossOrigin = "anonymous"; // Avoid CORS issues
-  
-  // Set reasonable canvas dimensions that work across devices
-  const devicePixelRatio = window.devicePixelRatio || 1;
-  const maxScale = Math.min(devicePixelRatio, 2); // Cap at 2x for better performance
-  
-  canvas.width = Math.round(window.innerWidth * maxScale);
-  canvas.height = Math.round(window.innerHeight * maxScale);
-  
-  // Flag to track if logo is loaded
-  let logoLoaded = false;
-  
-  // Wait for logo to load before starting animation
-  logo.onload = () => {
-    logoLoaded = true;
-    // Start drawing frames once logo is loaded
-    requestAnimationFrame(drawFrame);
-  };
-  
-  // Set logo source after attaching onload handler
-  logo.src = 'Images/logo.png';
-  
-  // Handle logo loading error
-  logo.onerror = (err) => {
-    console.warn('Logo failed to load:', err);
-    logoLoaded = true; // Continue without logo
-    requestAnimationFrame(drawFrame);
-  };
+  logo.src = 'Images/logo.png'; // Path to your logo
+
+  // Set the canvas dimensions to match the video
+  canvas.width = window.innerWidth * window.devicePixelRatio;
+  canvas.height = window.innerHeight * window.devicePixelRatio;
 
   function drawFrame() {
-    // Skip if canvas is not visible or attached to DOM
-    if (!canvas.isConnected) {
-      return; // Stop animation if canvas is removed
-    }
-    
     // Clear the canvas before drawing
     context.clearRect(0, 0, canvas.width, canvas.height);
 
-    try {
-      // Draw the video frame on the canvas
-      context.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
-      
-      // Only draw logo if it's loaded
-      if (logoLoaded) {
-        // Calculate the logo dimensions and position based on the given CSS-like properties
-        const logoHeight = canvas.height * 0.08;  // 8% of canvas height
-        const logoWidth = logo.naturalWidth * (logoHeight / logo.naturalHeight); // Maintain aspect ratio
-        
-        const logoX = canvas.width - logoWidth - (canvas.width * 0.01); // 1% from the right
-        const logoY = canvas.height * 0.007; // 0.7% from the top
-        
-        // Draw the logo on the canvas
-        context.drawImage(logo, logoX, logoY, logoWidth, logoHeight);
-      }
-      
-      // Request the next frame
-      requestAnimationFrame(drawFrame);
-    } catch (err) {
-      console.error('Error drawing to canvas:', err);
-      // Try to recover by requesting another frame
-      setTimeout(() => requestAnimationFrame(drawFrame), 500);
-    }
+    // Draw the video frame on the canvas
+    context.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
+
+    
+   // Calculate the logo dimensions and position based on the given CSS-like properties
+   const logoHeight = canvas.height * 0.08;  // 8% of canvas height
+   const logoWidth = logo.naturalWidth * (logoHeight / logo.naturalHeight); // Maintain aspect ratio
+
+   const logoX = canvas.width - logoWidth - (canvas.width * 0.01); // 1% from the right
+   const logoY = canvas.height * 0.007; // 0.7% from the top
+
+   // Draw the logo on the canvas
+   context.drawImage(logo, logoX, logoY, logoWidth, logoHeight);
+
+    // Request the next frame
+    requestAnimationFrame(drawFrame);
   }
-  
-  // If logo fails to load after 2 seconds, start drawing anyway
-  setTimeout(() => {
-    if (!logoLoaded) {
-      console.warn('Logo load timeout - starting without logo');
-      logoLoaded = true;
-      requestAnimationFrame(drawFrame);
-    }
-  }, 2000);
+
+  // Start drawing frames
+  requestAnimationFrame(drawFrame);
 }
 
 
