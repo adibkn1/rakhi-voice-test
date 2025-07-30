@@ -542,3 +542,21 @@ input:focus::placeholder {
   align-items: center;
   z-index: 10;
 }
+
+#openCameraBtn {
+  background-color: #6D3900;
+  color: white;
+  border: none;
+  border-radius: 25px;
+  padding: 10px 20px;
+  font-size: 1.2vh;
+  margin-top: 15px;
+  cursor: pointer;
+  font-family: 'Trajan', 'TRAJAN-BOLD', serif;
+  display: none; /* Hidden by default */
+  transition: background-color 0.3s;
+}
+
+#openCameraBtn:hover {
+  background-color: #8a4a00;
+}

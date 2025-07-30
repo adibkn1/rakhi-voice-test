@@ -537,7 +537,26 @@ function initializeAudio(rakhiData, receiverContainer, cameraContainer, playVoic
       }
     }
     
-    // Add event listeners for audio
+    // Function to show Open Camera button and hide text
+    function showOpenCameraButton() {
+      // Hide the text
+      if (playVoiceText) {
+        playVoiceText.style.display = 'none';
+      }
+      
+      // Show the Open Camera button
+      const openCameraBtn = document.getElementById('openCameraBtn');
+      if (openCameraBtn) {
+        openCameraBtn.style.display = 'block';
+        
+        // Add click event to the Open Camera button
+        openCameraBtn.onclick = (e) => {
+          e.stopPropagation(); // Prevent event bubbling
+          handleTap(receiverContainer, cameraContainer, rakhiData);
+        };
+      }
+    }
+    
     audio.addEventListener('error', (e) => {
       console.error('Audio error:', e);
       console.error('Audio error details:', audio.error);
@@ -546,7 +565,7 @@ function initializeAudio(rakhiData, receiverContainer, cameraContainer, playVoic
       if (playVoiceBtn) playVoiceBtn.classList.remove('hidden'); // Show button even on error
       if (playVoiceText) {
         if (audioHasPlayed) {
-          playVoiceText.textContent = 'TAP TO OPEN CAMERA';
+          showOpenCameraButton();
         } else {
           playVoiceText.textContent = 'Tap and wait to listen';
         }
@@ -581,7 +600,7 @@ function initializeAudio(rakhiData, receiverContainer, cameraContainer, playVoic
       if (playVoiceBtn) playVoiceBtn.classList.remove('hidden');
       if (!isPlaying) {
         if (audioHasPlayed) {
-          if (playVoiceText) playVoiceText.textContent = 'TAP TO OPEN CAMERA';
+          showOpenCameraButton();
         } else {
           if (playVoiceText) playVoiceText.textContent = 'Tap and wait to listen';
         }
@@ -612,7 +631,7 @@ function initializeAudio(rakhiData, receiverContainer, cameraContainer, playVoic
       isPlaying = false;
       if (isLoaded) {
         if (audioHasPlayed) {
-          if (playVoiceText) playVoiceText.textContent = 'TAP TO OPEN CAMERA';
+          showOpenCameraButton();
         } else {
           if (playVoiceText) playVoiceText.textContent = 'Tap and wait to listen';
         }
@@ -636,7 +655,10 @@ function initializeAudio(rakhiData, receiverContainer, cameraContainer, playVoic
       
       isPlaying = false;
       audioHasPlayed = true; // Mark that audio has been played
-      if (playVoiceText) playVoiceText.textContent = 'TAP TO OPEN CAMERA';
+      
+      // Show Open Camera button
+      showOpenCameraButton();
+      
       if (playingCheckInterval) {
         clearInterval(playingCheckInterval);
         playingCheckInterval = null;
@@ -645,13 +667,6 @@ function initializeAudio(rakhiData, receiverContainer, cameraContainer, playVoic
       
       // Re-enable container click event for camera initialization
       receiverContainer.style.pointerEvents = 'auto';
-      
-      // Set up container click handler for camera initialization
-      receiverContainer.addEventListener('click', (e) => {
-        if (audioHasPlayed && !isPlaying) {
-          handleTap(receiverContainer, cameraContainer, rakhiData);
-        }
-      }, { once: true }); // Use once: true to prevent multiple handlers
     });
     
     // Set up play button click handler if button exists
@@ -818,7 +833,7 @@ async function handleSharing(link) {
           ctx.fillStyle = '#6D3900';
           ctx.font = '16px Trajan';
           ctx.textAlign = 'center';
-          ctx.fillText('Check out this digital Rakhi I have sent you! ', canvas.width/2, img.height + 30);
+          ctx.fillText('Your sibling has sent you a digital Rakhi with a little surprise!', canvas.width/2, img.height + 30);
           ctx.fillText(link, canvas.width/2, img.height + 60);
           
           // Convert to blob and download
@@ -869,7 +884,7 @@ async function attemptNativeSharing(link) {
       try {
         await navigator.share({
           title: 'Rakhi in 30 secs',
-          text: 'Check out this digital Rakhi I have sent you! ',
+          text: 'Your sibling has sent you a digital Rakhi with a little surprise! ',
           url: link
         });
         console.log('Web Share API successful');
@@ -916,7 +931,7 @@ async function attemptNativeSharing(link) {
           ctx.fillStyle = '#6D3900';
           ctx.font = '16px Trajan';
           ctx.textAlign = 'center';
-          ctx.fillText('Check out this digital Rakhi I have sent you! ', canvas.width/2, img.height + 30);
+          ctx.fillText('Your sibling has sent you a digital Rakhi with a little surprise! ', canvas.width/2, img.height + 30);
           ctx.fillText(link, canvas.width/2, img.height + 60);
           
           // Convert to blob and download
@@ -1166,7 +1181,7 @@ document.addEventListener('DOMContentLoaded', () => {
       navigator.share({
         files: [file],
         title: 'Digital Rakhi',
-        text: 'Thanks for sending this lovely surprise — it truly made me smile. A very Happy Raksha Bandhan to you!',
+        text: 'Wow! That was such a great and unexpected surprise — it totally made my day! Sending lots of love your way. Wishing you a very Happy Raksha Bandhan!',
       }).then(() => {
         // Track successful photo sharing
         posthog.capture('sharing_method_used', { method: 'photo_share', context: 'ar_photo' });
@@ -1362,10 +1377,42 @@ if (holdRecordBtn) {
 if (playRecordingBtn) {
   playRecordingBtn.addEventListener('click', () => {
     if (recordedAudioUrl) {
+      // Get the icon element
+      const playIcon = playRecordingBtn.querySelector('.material-icons');
+      
+      // Check if audio is currently playing
+      if (audioPlayer && !audioPlayer.paused) {
+        // If playing, pause it
+        audioPlayer.pause();
+        playIcon.textContent = 'play_arrow';
+        return;
+      }
+      
+      // Otherwise, create new audio player or reset existing one
       if (audioPlayer) {
         audioPlayer.pause();
       }
       audioPlayer = new Audio(recordedAudioUrl);
+      
+      // Set up event listeners for the audio player
+      audioPlayer.addEventListener('play', () => {
+        // Change to pause icon when playing starts
+        playIcon.textContent = 'pause';
+      });
+      
+      audioPlayer.addEventListener('ended', () => {
+        // Change back to play icon when audio finishes
+        playIcon.textContent = 'play_arrow';
+      });
+      
+      audioPlayer.addEventListener('pause', () => {
+        // Change back to play icon when audio is paused
+        if (audioPlayer.currentTime < audioPlayer.duration) {
+          playIcon.textContent = 'play_arrow';
+        }
+      });
+      
+      // Start playing
       audioPlayer.play();
       console.log('Playing recorded audio');
     }
