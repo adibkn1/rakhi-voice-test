@@ -58846,6 +58846,9 @@ function downloadImage(blob) {
 const holdRecordBtn = document.getElementById('holdRecordBtn');
 const timerContainer = document.getElementById('timerContainer');
 const recordTimer = document.getElementById('recordTimer');
+const recordingInProgressUI = document.getElementById('recordingInProgressUI');
+const recordTimerDisplay = document.getElementById('recordTimerDisplay');
+const stopRecordBtn = document.getElementById('stopRecordBtn');
 const afterRecordBtns = document.getElementById('afterRecordBtns');
 const playRecordingBtn = document.getElementById('playRecordingBtn');
 const cancelRecordingBtn = document.getElementById('cancelRecordingBtn');
@@ -58860,9 +58863,11 @@ let isRecording = false;
 
 function resetVoiceRecorderUI() {
   holdRecordBtn.style.display = 'flex';
+  recordingInProgressUI.style.display = 'none';
   timerContainer.style.display = 'none';
   afterRecordBtns.style.display = 'none';
-  recordTimer.textContent = '10'; // Reset to 10 seconds
+  recordTimerDisplay.textContent = '10'; // Reset to 10 seconds
+  recordTimer.textContent = '10'; // Reset old timer too
   recordedAudioBlob = null;
   recordedAudioUrl = null;
   isRecording = false;
@@ -58884,7 +58889,11 @@ function updateRecordTimerAndProgress() {
   const remainingSeconds = maxDuration - elapsed;
   
   // Format the countdown timer (10 to 0) - just show the number
-  recordTimer.textContent = remainingSeconds <= 0 ? '0' : `${Math.ceil(remainingSeconds)}`;
+  const remainingDisplay = remainingSeconds <= 0 ? '0' : `${Math.ceil(remainingSeconds)}`;
+  
+  // Update both timers (old and new)
+  recordTimer.textContent = remainingDisplay;
+  recordTimerDisplay.textContent = remainingDisplay;
   
   if (elapsed >= maxDuration) {
     stopVoiceRecording();
@@ -58899,10 +58908,18 @@ function startVoiceRecording() {
   
   audioChunks = [];
   recordStartTime = Date.now();
-  timerContainer.style.display = 'block';
+  
+  // Hide initial record button and show recording in progress UI
   holdRecordBtn.style.display = 'none';
+  recordingInProgressUI.style.display = 'flex';
+  
+  // Keep old timer hidden but update it for compatibility
+  timerContainer.style.display = 'none';
+  
   afterRecordBtns.style.display = 'none';
-  recordTimer.textContent = '10'; // Start with 10 seconds
+  recordTimerDisplay.textContent = '10'; // Start with 10 seconds
+  recordTimer.textContent = '10'; // Update old timer too
+  
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
     alert('Your browser does not support audio recording.');
     console.error('MediaDevices or getUserMedia not supported');
@@ -58934,6 +58951,9 @@ function startVoiceRecording() {
         recordedAudioUrl = URL.createObjectURL(recordedAudioBlob);
         console.log('Voice recording stopped, blob created:', recordedAudioBlob);
         console.log('Audio MIME type:', mimeType);
+        
+        // Hide recording UI and show playback controls
+        recordingInProgressUI.style.display = 'none';
         timerContainer.style.display = 'none';
         afterRecordBtns.style.display = 'flex';
         isRecording = false;
@@ -58973,8 +58993,16 @@ function stopVoiceRecording() {
 if (holdRecordBtn) {
   holdRecordBtn.addEventListener('click', () => {
     if (!isRecording) {
-    startVoiceRecording();
+      startVoiceRecording();
     } else {
+      stopVoiceRecording();
+    }
+  });
+}
+
+if (stopRecordBtn) {
+  stopRecordBtn.addEventListener('click', () => {
+    if (isRecording) {
       stopVoiceRecording();
     }
   });
@@ -59024,6 +59052,7 @@ if (playRecordingBtn) {
     }
   });
 }
+
 if (cancelRecordingBtn) {
   cancelRecordingBtn.addEventListener('click', () => {
     resetVoiceRecorderUI();
