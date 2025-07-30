@@ -134,28 +134,26 @@ document.addEventListener('DOMContentLoaded', function() {
   let pageSessionStart = Date.now(); // Track session start for both main and token pages
 
   if (token) {
-    // Track token page visit
-    posthog.capture('token_page_visited', { token });
+    // Track token page visit with specific page name
+    posthog.capture('page3audio_visited', { token });
 
     // Track session duration when leaving token page
     window.addEventListener('beforeunload', () => {
       const sessionDuration = Date.now() - pageSessionStart;
-      posthog.capture('session_duration', { 
-        page_type: 'receiver', 
+      posthog.capture('page3audio_duration', { 
         duration_seconds: Math.floor(sessionDuration / 1000) 
       });
     });
 
     showReceiverSide(token);
   } else {
-    // Track main page visit
-    posthog.capture('page_view', { page_type: 'main' });
+    // Track main page visit with specific page name
+    posthog.capture('page1form_visited');
 
     // Track session duration when leaving main page
     window.addEventListener('beforeunload', () => {
       const sessionDuration = Date.now() - pageSessionStart;
-      posthog.capture('session_duration', { 
-        page_type: 'sender', 
+      posthog.capture('page1form_duration', { 
         duration_seconds: Math.floor(sessionDuration / 1000) 
       });
     });
@@ -216,6 +214,9 @@ function setupForm() {
         has_sister_name: !!sisterNameInput.value.trim(),
         has_brother_name: !!brotherNameInput.value.trim()
       });
+
+      // Track transition to voice recording page
+      posthog.capture('page2voice_visited');
 
       // Change background image
       const senderContainer = document.getElementById('senderContainer');
@@ -742,13 +743,12 @@ function initializeAudio(rakhiData, receiverContainer, cameraContainer, playVoic
 
 async function handleTap(receiverContainer, cameraContainer, rakhiData) {
   try {
-    // Show loading state on the button
-    const playVoiceText = document.getElementById('playVoiceText');
-    if (playVoiceText) {
-      playVoiceText.textContent = 'Loading...';
-    }
-
-    // Show camera container immediately with loading indicator
+    console.log('Handle tap called');
+    
+    // Track camera page view
+    posthog.capture('page4camera_visited');
+    
+    // Show loading indicator
     const cameraLoading = document.getElementById('camera-loading');
     if (cameraLoading) {
       cameraLoading.style.display = 'flex';
